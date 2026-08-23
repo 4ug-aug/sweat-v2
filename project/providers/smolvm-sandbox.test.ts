@@ -682,6 +682,43 @@ test("machine settings become smolvm create flags", () => {
     "-v",
     `/tmp/colony-smolvm-ca:${dirname(guestExtraCaCertificate)}:ro`,
   ]);
+  // Unset means smolvm's own 8192/4, so the flags must carry a set size through
+  // rather than dropping it and leaving every sandbox on the default.
+  expect(
+    smolvmCreateFlags({
+      name: "colony-golden-1",
+      image: "alpine",
+      network: false,
+      mem: 4096,
+      cpus: 2,
+    }),
+  ).toEqual(["--mem", "4096", "--cpus", "2"]);
+});
+
+test("a sized provider boots goldens and fallbacks at that size", async () => {
+  const configs: MachineConfig[] = [];
+  const provider = createSmolvmSandboxProvider({
+    ...passthroughImage,
+    mem: 4096,
+    cpus: 2,
+    createMachine: async (config) => {
+      configs.push(config);
+      return stubMachine();
+    },
+    // No fork support, so this also exercises the direct-boot fallback.
+    forkMachine: async () => {
+      throw new Error("forking unavailable");
+    },
+    run: succeeds,
+  });
+  const sandbox = await provider.create({ image: "alpine" });
+
+  expect(configs.length).toBeGreaterThan(0);
+  for (const config of configs) {
+    expect(config.mem).toBe(4096);
+    expect(config.cpus).toBe(2);
+  }
+  await sandbox.dispose();
 });
 
 test("a private CA reaches the golden's guest and every exec in its clones", async () => {

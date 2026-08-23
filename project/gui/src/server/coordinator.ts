@@ -147,6 +147,41 @@ export function parseSandboxProvider(
   return parseProvider('SWEAT_SANDBOX_PROVIDER', SANDBOX_PROVIDERS, value)
 }
 
+/**
+ * A sandbox needs room for the guest page cache the image brings (measured:
+ * ~700MiB for sweat-agent, ~1.25GiB for the cursor image) plus whatever the
+ * agent builds. 4096 clears both with headroom; 2048 is the measured floor
+ * that still leaves ~1GiB free, and 1024 leaves 79MiB and will OOM.
+ */
+const DEFAULT_SANDBOX_MEM_MIB = 4096
+const DEFAULT_SANDBOX_CPUS = 2
+
+/** A positive integer, or the default — a typo must not silently mean "8192". */
+function positiveInteger(
+  variable: string,
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (value === undefined || value.trim() === '') return fallback
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${variable} must be a positive integer, got: ${value}`)
+  }
+  return parsed
+}
+
+export function sandboxMemMib(value: string | undefined): number {
+  return positiveInteger(
+    'SWEAT_SANDBOX_MEM_MIB',
+    value,
+    DEFAULT_SANDBOX_MEM_MIB,
+  )
+}
+
+export function sandboxCpus(value: string | undefined): number {
+  return positiveInteger('SWEAT_SANDBOX_CPUS', value, DEFAULT_SANDBOX_CPUS)
+}
+
 type HostAddress = { family: string | number; internal: boolean; address: string }
 
 /** Hypervisor, VPN, and peer-to-peer nics a guest cannot use as "the LAN". */

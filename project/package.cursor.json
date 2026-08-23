@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@cursor/sdk": "^1.0.26"
+    "@cursor/sdk": "^1.0.28"
   }
 }

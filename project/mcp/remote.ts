@@ -45,6 +45,7 @@ export function createRemoteMcpUpstream(options: {
       requestInit: {
         headers: { Authorization: `Bearer ${options.accessToken}` },
       },
+      cacheToolsList: true,
     }),
   );
 }

@@ -73,3 +73,30 @@ test("one session routes granted tools across provider adapters", async () => {
   await expect(gateway.callTool(session.token, "github.create_pull_request", {})).resolves.toBe("pull request");
   expect(calls).toEqual(["linear.get_issue", "github.create_pull_request"]);
 });
+
+test("a gateway lists its upstream tools once, and retries after a failure", async () => {
+  let listings = 0;
+  let failing = true;
+  const gateway = createMcpGateway({
+    upstream: {
+      listTools: async () => {
+        listings += 1;
+        if (failing) throw new Error("upstream unreachable");
+        return [{ name: "get_issue" }];
+      },
+      callTool: async () => "ok",
+    },
+  });
+  const session = gateway.createSession({
+    tools: ["get_issue"],
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+
+  await expect(gateway.listTools(session.token)).rejects.toThrow("upstream unreachable");
+  failing = false;
+
+  await expect(gateway.listTools(session.token)).resolves.toEqual([{ name: "get_issue" }]);
+  await expect(gateway.callTool(session.token, "get_issue", {})).resolves.toBe("ok");
+  await expect(gateway.callTool(session.token, "get_issue", {})).resolves.toBe("ok");
+  expect(listings).toBe(2);
+});

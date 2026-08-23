@@ -7,14 +7,7 @@ import {
 export function createCursorSdkRuntime(options: {
   command?: readonly string[];
 } = {}): AgentProvider {
-  const command =
-    options.command ??
-    ([
-      "node",
-      "--experimental-strip-types",
-      "--no-warnings=ExperimentalWarning",
-      "/app/runtime/cursor-cli.ts",
-    ] as const);
+  const command = options.command ?? (["bun", "/app/cursor-cli.js"] as const);
 
   return createStdoutStepRuntime({
     command: () => command,

@@ -1,6 +1,6 @@
 import { boundStepText, type Step } from "./step.ts";
 import { readFile, writeFile } from "node:fs/promises";
-import type { SettingSource } from "@cursor/sdk";
+import type { SettingSource } from "@cursor/sdk/bundled";
 
 export interface CursorCapabilitySession {
   url: string;
@@ -170,13 +170,13 @@ export async function openCursorAgentSession(
   const createAgent =
     dependencies.createAgent ??
     (async (options) => {
-      const { Agent } = await import("@cursor/sdk");
+      const { Agent } = await import("@cursor/sdk/bundled");
       return Agent.create(options) as Promise<CursorSdkAgent>;
     });
   const resumeAgent =
     dependencies.resumeAgent ??
     (async (agentId, options) => {
-      const { Agent } = await import("@cursor/sdk");
+      const { Agent } = await import("@cursor/sdk/bundled");
       return Agent.resume(agentId, options) as Promise<CursorSdkAgent>;
     });
 

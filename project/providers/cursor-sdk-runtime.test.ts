@@ -37,12 +37,7 @@ test("the Cursor runtime passes the definition and task to its container command
 
   const { onOutput: _onOutput, ...rest } = request as Record<string, unknown>;
   expect(rest).toEqual({
-    command: [
-      "node",
-      "--experimental-strip-types",
-      "--no-warnings=ExperimentalWarning",
-      "/app/runtime/cursor-cli.ts",
-    ],
+    command: ["bun", "/app/cursor-cli.js"],
     env: {
       SWEAT_AGENT_TASK: "Fix the test",
       SWEAT_AGENT_ID: "software-engineer",

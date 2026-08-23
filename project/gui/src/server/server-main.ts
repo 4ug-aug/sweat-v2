@@ -8,6 +8,8 @@ import {
   hostLanAddress,
   parseContainerProvider,
   parseSandboxProvider,
+  sandboxCpus,
+  sandboxMemMib,
 } from './coordinator'
 import { createSqliteBulletinStore } from './features/bulletins/bulletin-store'
 import { createSqliteChatStore } from './features/chats/chat-store'
@@ -196,6 +198,10 @@ if (import.meta.main) {
             ? { dns: process.env.SWEAT_SANDBOX_DNS }
             : {}),
           ...(agentCaCertificate ? { caCertificate: agentCaCertificate } : {}),
+          // Bounds one runaway guest. smolvm's own defaults are 8192 and 4, and
+          // nothing caps how many sandboxes run at once.
+          mem: sandboxMemMib(process.env.SWEAT_SANDBOX_MEM_MIB),
+          cpus: sandboxCpus(process.env.SWEAT_SANDBOX_CPUS),
         })
       : undefined
   const containerProvider =

@@ -207,6 +207,8 @@ export type MachineConfig = {
   ports?: ReadonlyArray<{ host: number; guest: number }>;
   /** Start as a fork base: memfd-backed guest RAM plus a control socket. */
   forkable?: boolean;
+  mem?: number;
+  cpus?: number;
   /** Resolver for the guest, whose default is the public 8.8.8.8 and 1.1.1.1. */
   dns?: string;
   /** Host directory holding only the extra CA bundle, mounted read-only. */
@@ -353,6 +355,8 @@ type ManagedMachine = {
 /** The machine settings smolvm takes as `machine create` flags. */
 export function smolvmCreateFlags(config: MachineConfig): string[] {
   return [
+    ...(config.mem === undefined ? [] : ["--mem", String(config.mem)]),
+    ...(config.cpus === undefined ? [] : ["--cpus", String(config.cpus)]),
     // Always virtio-net: publishing a Preview port makes smolvm pick that
     // backend, and a guest booted on the default TSI has no interface for it —
     // a clone forked with `-p` off a TSI golden loses the network entirely.
@@ -591,6 +595,9 @@ export function createSmolvmSandboxProvider(
     dns?: string;
     /** Host path of a private CA the guest must trust to reach such a host. */
     caCertificate?: string;
+    /** Guest RAM in MiB and vCPU count for every machine this provider boots. */
+    mem?: number;
+    cpus?: number;
     run?: RunCommand;
   } = {},
 ): SandboxProvider & SmolvmMachineControl & SmolvmGoldens {
@@ -606,12 +613,18 @@ export function createSmolvmSandboxProvider(
       return caStageDir;
     })());
 
-  /** Every machine this provider boots, golden or fallback, needs both. */
+  /**
+   * Every machine this provider boots, golden or fallback, needs all four. A
+   * clone takes its size from the golden it forks, so setting it here covers
+   * the clones too — `machine fork` has no size flags of its own.
+   */
   const hostAccess = async (): Promise<Partial<MachineConfig>> => ({
     ...(options.dns ? { dns: options.dns } : {}),
     ...(options.caCertificate
       ? { caDirectory: await stageCaCertificate(options.caCertificate) }
       : {}),
+    ...(options.mem === undefined ? {} : { mem: options.mem }),
+    ...(options.cpus === undefined ? {} : { cpus: options.cpus }),
   });
   const createMachine = options.createMachine ?? createSmolvmMachine;
   const createId = options.createId ?? (() => `sandbox-${crypto.randomUUID()}`);

@@ -1,4 +1,40 @@
-FROM node:22.13-bookworm-slim
+# pglite is installed with bun, so it is staged: bun's install cache is ~27MB
+# that `COPY --from` leaves behind in the builder.
+FROM oven/bun:1.3.5 AS pglite
+
+RUN mkdir -p /opt/pglite \
+ && cd /opt/pglite \
+ && bun add @electric-sql/pglite @electric-sql/pglite-socket
+
+# npm's lockfile is the source of truth for the Cursor SDK, and npm is what
+# resolves the right per-platform @cursor/sdk-<os>-<arch> native package. Node
+# lives here in the builder only -- the shipped image has none.
+FROM node:22.13-bookworm-slim AS deps
+
+WORKDIR /app
+COPY package.cursor.json ./package.json
+COPY package.cursor-lock.json ./package-lock.json
+RUN npm ci --omit=dev
+
+# The sandbox entrypoint becomes one file, so the shipped image needs no Node
+# (112MB), no npm or corepack (22MB), and no node_modules (44MB) -- all of which
+# every sandbox otherwise pays for again as guest page cache the host backs.
+FROM oven/bun:1.3.5 AS bundle
+
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.cursor.json ./package.json
+COPY runtime/error.ts runtime/step.ts runtime/cursor-sdk.ts runtime/cursor-cli.ts ./runtime/
+# A plain bundle, not `--compile`: a compiled executable embeds its own copy of
+# the bun runtime, and this image already ships bun for the agent to use.
+RUN bun build --target bun ./runtime/cursor-cli.ts --outfile ./cursor-cli.js
+# Native binaries cannot live inside a JS bundle, so the SDK's sandbox helper and
+# its ripgrep ship beside it. Nothing else from node_modules is needed: the
+# bundler embedded it.
+RUN mkdir -p /native/@cursor \
+ && cp -a node_modules/@cursor/sdk-*/ /native/@cursor/
+
+FROM debian:bookworm-slim
 
 ARG SWEAT_VERSION=dev
 
@@ -10,7 +46,9 @@ COPY --from=oven/bun:1.3.5 /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 # Docker Engine lives in the guest so `make dev` / Compose can run inside a
-# smolvm. The host Docker socket is not mounted.
+# smolvm. The host Docker socket is not mounted. The engine and buildx stay --
+# agents build images in here. The docs, manpages and translations do not, since
+# every sandbox pays for them again as guest page cache.
 RUN apt-get update && apt-get install --yes --no-install-recommends \
     git ca-certificates curl make openssl \
     python3 python3-pip python3-venv python-is-python3 \
@@ -21,24 +59,24 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
   && apt-get update \
   && apt-get install --yes --no-install-recommends \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
-  && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /opt/pglite \
- && cd /opt/pglite \
- && bun add @electric-sql/pglite @electric-sql/pglite-socket \
- && printf '%s\n' '#!/bin/sh' 'exec bun /opt/pglite/node_modules/@electric-sql/pglite-socket/dist/scripts/server.js "$@"' > /usr/local/bin/pglite-server \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale
+
+COPY --from=pglite /opt/pglite /opt/pglite
+RUN printf '%s\n' '#!/bin/sh' 'exec bun /opt/pglite/node_modules/@electric-sql/pglite-socket/dist/scripts/server.js "$@"' > /usr/local/bin/pglite-server \
  && chmod +x /usr/local/bin/pglite-server
 
+# `type: module` here is what makes bun read the bundle as ESM.
 COPY package.cursor.json ./package.json
-COPY package.cursor-lock.json ./package-lock.json
-RUN npm ci --omit=dev
-
-COPY runtime/error.ts /app/runtime/error.ts
-COPY runtime/step.ts /app/runtime/step.ts
-COPY runtime/cursor-sdk.ts /app/runtime/cursor-sdk.ts
-COPY runtime/cursor-cli.ts /app/runtime/cursor-cli.ts
+COPY --from=bundle /app/cursor-cli.js /app/cursor-cli.js
+COPY --from=bundle /native /app/node_modules
 
 # The workspace is a host bind mount, so /work keeps the host's uid while the
 # agent runs as root. Without this git refuses the repo as "dubious ownership".
 RUN git config --system --add safe.directory /work
+
+# smolvm boots the image's own command, and the Node base that used to supply
+# one is gone.
+CMD ["bun"]
 
 WORKDIR /work

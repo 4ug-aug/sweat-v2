@@ -41,9 +41,10 @@ export function createMcpGateway(options: {
   const upstreams = options.upstreams ?? (options.upstream ? [options.upstream] : []);
   if (!upstreams.length) throw new Error("At least one MCP upstream is required");
 
-  const availableTools = async (): Promise<Map<string, { upstream: McpUpstream; tool: McpTool }>> => {
+  type Routes = Map<string, { upstream: McpUpstream; tool: McpTool }>;
+  const listUpstreamTools = async (): Promise<Routes> => {
     const tools = await Promise.all(upstreams.map(async (upstream) => [upstream, await upstream.listTools()] as const));
-    const routes = new Map<string, { upstream: McpUpstream; tool: McpTool }>();
+    const routes: Routes = new Map();
     for (const [upstream, entries] of tools) {
       for (const tool of entries) {
         if (routes.has(tool.name)) throw new Error(`Duplicate MCP tool name: ${tool.name}`);
@@ -52,6 +53,16 @@ export function createMcpGateway(options: {
     }
     return routes;
   };
+
+  // A gateway is built per capability session, so its upstream tool set is
+  // fixed for the run: listing once spares every tools/call a fan-out to each
+  // upstream. A failed listing is not cached, so a flaky upstream can retry.
+  let routes: Promise<Routes> | undefined;
+  const availableTools = (): Promise<Routes> =>
+    (routes ??= listUpstreamTools().catch((error: unknown) => {
+      routes = undefined;
+      throw error;
+    }));
 
   const grantFor = (token: string): McpGrant => {
     const grant = sessions.get(token);

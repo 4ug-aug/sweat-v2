@@ -343,6 +343,7 @@ export async function runAgent(
               allowedToolNames: [...request.capabilitySession.allowedTools],
             },
             timeout: 5 * 60_000,
+            cacheToolsList: true,
           }),
         ], { strict: true })
       : undefined);
@@ -515,6 +516,7 @@ export async function openOpenAIAgentSession(
             allowedToolNames: [...request.capabilitySession.allowedTools],
           },
           timeout: 5 * 60_000,
+          cacheToolsList: true,
         }),
       ], { strict: true })
     : undefined;
