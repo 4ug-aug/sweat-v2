@@ -13,6 +13,14 @@ import { BrailleLoader } from '#/components/ui/braille-loader'
 import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -38,7 +46,7 @@ import { apiFetch, apiJson, apiJsonBody } from '#/lib/api-transport'
 import { cn } from '#/lib/utils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 type ConnectionField = {
   key: string
@@ -74,6 +82,16 @@ const workspaceConnectionsQueryKey = [
   'workspace-settings',
   'connections',
 ] as const
+
+function connectionSummary(connection: PublicConnection): string | undefined {
+  const host = connection.values.host?.trim()
+  const database = connection.values.database?.trim()
+  if (host && database) {
+    return `${host}:${connection.values.port?.trim() || '5432'}/${database}`
+  }
+  const shown = Object.values(connection.values).filter((value) => value.trim())
+  return shown.length ? shown.join(' · ') : undefined
+}
 
 function useWorkspaceConnections() {
   return useQuery({
@@ -176,6 +194,9 @@ function ConnectionCard({
   onUpdated: (connection: PublicConnection) => void
   onError: (message: string | undefined) => void
 }) {
+  const extraConfig = (connection.fieldSchema ?? []).length > 1
+  const summary = extraConfig ? connectionSummary(connection) : undefined
+  const [editing, setEditing] = useState(false)
   const [values, setValues] = useState<Record<string, string>>(
     () => connection.values,
   )
@@ -194,6 +215,7 @@ function ConnectionCard({
       setApiKey('')
       setValues(result.connection.values)
       setFormError(undefined)
+      setEditing(false)
       onError(undefined)
       onUpdated(result.connection)
     },
@@ -362,78 +384,91 @@ function ConnectionCard({
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button disabled={busy} onClick={() => save.mutate()} size="sm">
-            {save.isPending ? <BrailleLoader text="Saving" /> : 'Save'}
-          </Button>
+          {extraConfig ? (
+            <Button
+              disabled={busy}
+              onClick={() => setEditing(true)}
+              size="sm"
+              type="button"
+              variant={connection.configured ? 'outline' : 'default'}
+            >
+              Configure
+            </Button>
+          ) : (
+            <Button disabled={busy} onClick={() => save.mutate()} size="sm">
+              {save.isPending ? <BrailleLoader text="Saving" /> : 'Save'}
+            </Button>
+          )}
         </div>
       </div>
 
-      {formError && (
+      {formError && !editing && (
         <p className="mt-2 text-sm text-destructive" role="alert">
           {formError}
         </p>
       )}
 
-      <div className="mt-4 grid gap-3">
-        {(connection.fieldSchema ?? []).map((field) =>
-          field.kind === 'select' && field.options?.length ? (
-            <Select
-              key={field.key}
-              disabled={busy}
-              onValueChange={(value) =>
-                setValues((current) => ({
-                  ...current,
-                  [field.key]: value ?? '',
-                }))
-              }
-              value={values[field.key] || field.options[0]!.value}
-            >
-              <SelectTrigger
-                aria-label={`${connection.name} ${field.label}`}
-                className="w-full"
-              >
-                <SelectValue placeholder={field.label} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {field.options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              key={field.key}
-              aria-label={`${connection.name} ${field.label}`}
-              disabled={busy}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [field.key]: event.target.value,
-                }))
-              }
-              placeholder={field.label}
-              type={field.kind === 'url' ? 'url' : 'text'}
-              value={values[field.key] ?? ''}
-            />
-          ),
-        )}
-        <Input
-          aria-label={`${connection.name} ${connection.secretLabel}`}
-          disabled={busy}
-          onChange={(event) => setApiKey(event.target.value)}
-          placeholder={
-            connection.configured
-              ? `Leave blank to keep current ${connection.secretLabel.toLowerCase()}`
-              : connection.secretLabel
+      {extraConfig && connection.configured && summary && (
+        <p className="mt-3 truncate font-mono text-xs text-muted-foreground">
+          {summary}
+        </p>
+      )}
+
+      {!extraConfig && (
+        <ConnectionFields
+          apiKey={apiKey}
+          busy={busy}
+          className="mt-4"
+          connection={connection}
+          onApiKeyChange={setApiKey}
+          onFieldChange={(key, value) =>
+            setValues((current) => ({ ...current, [key]: value }))
           }
-          type="password"
-          value={apiKey}
+          values={values}
         />
-      </div>
+      )}
+
+      {extraConfig && (
+        <Dialog open={editing} onOpenChange={setEditing}>
+          <DialogContent className="sm:max-w-lg" showCloseButton>
+            <DialogHeader>
+              <DialogTitle>Configure {connection.name}</DialogTitle>
+              <DialogDescription>
+                {`${(connection.fieldSchema ?? []).map((field) => field.label).join(', ')}.`}
+              </DialogDescription>
+            </DialogHeader>
+            {formError && (
+              <p className="text-sm text-destructive" role="alert">
+                {formError}
+              </p>
+            )}
+            <ConnectionFields
+              apiKey={apiKey}
+              busy={busy}
+              compact
+              connection={connection}
+              labeled
+              onApiKeyChange={setApiKey}
+              onFieldChange={(key, value) =>
+                setValues((current) => ({ ...current, [key]: value }))
+              }
+              values={values}
+            />
+            <DialogFooter>
+              <Button
+                onClick={() => setEditing(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button disabled={busy} onClick={() => save.mutate()}>
+                {save.isPending ? <BrailleLoader text="Saving" /> : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div className="mt-auto space-y-2 pt-3">
         <p className="text-sm font-medium">Link to agents</p>
@@ -476,6 +511,115 @@ function ConnectionCard({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function ConnectionFields({
+  connection,
+  values,
+  onFieldChange,
+  apiKey,
+  onApiKeyChange,
+  busy,
+  labeled,
+  compact,
+  className,
+}: {
+  connection: PublicConnection
+  values: Record<string, string>
+  onFieldChange: (key: string, value: string) => void
+  apiKey: string
+  onApiKeyChange: (value: string) => void
+  busy: boolean
+  labeled?: boolean
+  compact?: boolean
+  className?: string
+}) {
+  return (
+    <div className={cn('grid gap-3', compact && 'sm:grid-cols-2', className)}>
+      {(connection.fieldSchema ?? []).map((field) => {
+        const control =
+          field.kind === 'select' && field.options?.length ? (
+            <Select
+              disabled={busy}
+              onValueChange={(value) => onFieldChange(field.key, value ?? '')}
+              value={values[field.key] || field.options[0]!.value}
+            >
+              <SelectTrigger
+                aria-label={`${connection.name} ${field.label}`}
+                className="w-full"
+              >
+                <SelectValue placeholder={field.label} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {field.options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              aria-label={`${connection.name} ${field.label}`}
+              disabled={busy}
+              onChange={(event) =>
+                onFieldChange(field.key, event.target.value)
+              }
+              placeholder={field.label}
+              type={field.kind === 'url' ? 'url' : 'text'}
+              value={values[field.key] ?? ''}
+            />
+          )
+        return (
+          <Field key={field.key} label={field.label} labeled={labeled}>
+            {control}
+          </Field>
+        )
+      })}
+      <Field
+        className={compact ? 'sm:col-span-2' : undefined}
+        label={connection.secretLabel}
+        labeled={labeled}
+      >
+        <Input
+          aria-label={`${connection.name} ${connection.secretLabel}`}
+          disabled={busy}
+          onChange={(event) => onApiKeyChange(event.target.value)}
+          placeholder={
+            connection.configured
+              ? `Leave blank to keep current ${connection.secretLabel.toLowerCase()}`
+              : connection.secretLabel
+          }
+          type="password"
+          value={apiKey}
+        />
+      </Field>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  labeled,
+  className,
+  children,
+}: {
+  label: string
+  labeled?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  if (!labeled) {
+    return className ? <div className={className}>{children}</div> : children
+  }
+  return (
+    <div className={cn('grid gap-1', className)}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
     </div>
   )
 }
