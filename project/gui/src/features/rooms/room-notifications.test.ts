@@ -3,6 +3,7 @@ import {
   acknowledgeThreadAttentionRoot,
   applyThreadAttentionEvent,
   hasAnyRoomNotification,
+  isActivelyViewingRoom,
   roomNotification,
 } from './room-notifications'
 import type { RoomMessageMarker } from './types'
@@ -34,6 +35,50 @@ test('non-mention attention (e.g. Thread Attention) surfaces the sidebar badge e
     'unread',
   )
   expect(roomNotification(0, 0, undefined, undefined)).toBeUndefined()
+})
+
+test('a selected room is not being viewed when the window is in the background', () => {
+  expect(
+    isActivelyViewingRoom({
+      selectedRoomId: 'general',
+      roomId: 'general',
+      viewingRoom: true,
+      windowActive: false,
+    }),
+  ).toBe(false)
+})
+
+test('a selected room is not being viewed when another dashboard surface is open', () => {
+  expect(
+    isActivelyViewingRoom({
+      selectedRoomId: 'general',
+      roomId: 'general',
+      viewingRoom: false,
+      windowActive: true,
+    }),
+  ).toBe(false)
+})
+
+test('a different room is not being viewed even when the window is focused on a room', () => {
+  expect(
+    isActivelyViewingRoom({
+      selectedRoomId: 'docs',
+      roomId: 'general',
+      viewingRoom: true,
+      windowActive: true,
+    }),
+  ).toBe(false)
+})
+
+test('the selected room is being viewed only in a focused room timeline', () => {
+  expect(
+    isActivelyViewingRoom({
+      selectedRoomId: 'general',
+      roomId: 'general',
+      viewingRoom: true,
+      windowActive: true,
+    }),
+  ).toBe(true)
 })
 
 test('hasAnyRoomNotification is true when any room has a notification', () => {

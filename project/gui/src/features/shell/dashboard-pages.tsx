@@ -1,9 +1,7 @@
 import { StaticDither } from '#/components/static-dither'
-import type { BulletinsPageHandle } from '#/features/bulletins/bulletins-page'
 import type { IssueStatus } from '#/features/issues/types'
 import type { Author } from '#/features/rooms/types'
 import { lazy, Suspense } from 'react'
-import type { RefObject } from 'react'
 import type { DashboardView } from './dashboard-navigation'
 
 // One chunk per view. Only the room view ships in the Dashboard chunk itself,
@@ -63,7 +61,6 @@ export function DashboardPages({
   onIssueCreateChange,
   selectedIssueId,
   onSelectedIssueIdChange,
-  bulletinsRef,
   selectedDocId,
   onSelectedDocIdChange,
   grillStartOpen,
@@ -84,7 +81,6 @@ export function DashboardPages({
   onIssueCreateChange: (open: boolean, status?: IssueStatus) => void
   selectedIssueId: string | undefined
   onSelectedIssueIdChange: (id: string | undefined) => void
-  bulletinsRef: RefObject<BulletinsPageHandle | null>
   selectedDocId: string | undefined
   onSelectedDocIdChange: (id: string | undefined) => void
   grillStartOpen: boolean
@@ -128,9 +124,7 @@ export function DashboardPages({
           onOpenMachine={onOpenMachine}
         />
       )}
-      {view === 'bulletins' && (
-        <BulletinsPage ref={bulletinsRef} currentUserId={user.id} />
-      )}
+      {view === 'bulletins' && <BulletinsPage currentUserId={user.id} />}
       {view === 'docs' && (
         <div className="min-h-0 flex-1 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out fill-mode-backwards motion-reduce:animate-none">
           <DocsPage

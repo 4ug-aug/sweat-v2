@@ -156,6 +156,7 @@ export function IssuesPage({
                 insightsOpen={insightsOpen}
                 onInsightsOpenChange={setInsightsOpen}
                 onChange={setFilters}
+                onCreate={() => openCreate()}
               />
               {visible.length === 0 && filtersActive ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">

@@ -13,13 +13,14 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
+import { Kbd, KbdGroup } from '#/components/ui/kbd'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '#/components/ui/popover'
 import { cn } from '#/lib/utils'
-import { BarChart3, ChevronDown, UserRound, X } from 'lucide-react'
+import { BarChart3, ChevronDown, Plus, UserRound, X } from 'lucide-react'
 import { useState } from 'react'
 import { EMPTY_ISSUE_FILTERS, issueFiltersActive } from '../issue-filters'
 import type { IssueListFilters } from '../issue-filters'
@@ -33,6 +34,9 @@ import {
   ISSUE_STATUS_LABEL,
   ISSUE_STATUSES,
 } from '../types'
+
+const isApplePlatform = (): boolean =>
+  /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
 
 function toggleValue<T>(values: T[], value: T): T[] {
   return values.includes(value)
@@ -218,14 +222,17 @@ export function IssueFiltersBar({
   insightsOpen,
   onInsightsOpenChange,
   onChange,
+  onCreate,
 }: {
   filters: IssueListFilters
   knownTags: string[]
   insightsOpen: boolean
   onInsightsOpenChange: (open: boolean) => void
   onChange: (filters: IssueListFilters) => void
+  onCreate: () => void
 }) {
   const active = issueFiltersActive(filters)
+  const modifier = isApplePlatform() ? '⌘' : 'Ctrl'
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-1">
@@ -272,17 +279,37 @@ export function IssueFiltersBar({
           Clear
         </Button>
       )}
-      <Button
-        type="button"
-        variant={insightsOpen ? 'secondary' : 'ghost'}
-        size="icon-sm"
-        className="ml-auto size-7 text-muted-foreground"
-        aria-label="Toggle insights panel"
-        aria-expanded={insightsOpen}
-        onClick={() => onInsightsOpenChange(!insightsOpen)}
-      >
-        <BarChart3 className="size-4" />
-      </Button>
+      <div className="ml-auto flex items-center gap-1">
+        <Button
+          type="button"
+          variant={insightsOpen ? 'secondary' : 'ghost'}
+          size="icon-sm"
+          className="size-7 text-muted-foreground"
+          aria-label="Toggle insights panel"
+          aria-expanded={insightsOpen}
+          onClick={() => onInsightsOpenChange(!insightsOpen)}
+        >
+          <BarChart3 className="size-4" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          className="h-7 gap-1.5"
+          title={`${modifier}+N`}
+          onClick={onCreate}
+        >
+          <Plus data-icon="inline-start" />
+          New issue
+          <KbdGroup className="pointer-events-none hidden sm:inline-flex opacity-80">
+            <Kbd className="bg-primary-foreground/15 text-primary-foreground">
+              {modifier}
+            </Kbd>
+            <Kbd className="bg-primary-foreground/15 text-primary-foreground">
+              N
+            </Kbd>
+          </KbdGroup>
+        </Button>
+      </div>
     </div>
   )
 }

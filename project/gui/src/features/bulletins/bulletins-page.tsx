@@ -1,16 +1,11 @@
-import {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react'
+import { BrailleLoader } from '#/components/ui/braille-loader'
+import { Button } from '#/components/ui/button'
+import { toast } from '#/components/ui/toast'
+import { RestrictToElement } from '@dnd-kit/dom/modifiers'
 import { DragDropProvider, useDroppable } from '@dnd-kit/react'
 import type { DragEndEvent } from '@dnd-kit/react'
-import { RestrictToElement } from '@dnd-kit/dom/modifiers'
-import { BrailleLoader } from '#/components/ui/braille-loader'
-import { toast } from '#/components/ui/toast'
+import { Plus } from 'lucide-react'
+import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import { BulletinCard } from './bulletin-card'
 import { normalizePoll } from './bulletin-poll'
 import type { Poll } from './types'
@@ -53,14 +48,7 @@ function BulletinBoardSurface({
   )
 }
 
-export type BulletinsPageHandle = {
-  addBulletin: () => void
-}
-
-export const BulletinsPage = forwardRef<
-  BulletinsPageHandle,
-  { currentUserId: string }
->(function BulletinsPage({ currentUserId }, ref) {
+export function BulletinsPage({ currentUserId }: { currentUserId: string }) {
   const boardRef = useRef<HTMLDivElement>(null)
   const { data: bulletins = [], isPending, isError, error } = useBulletins()
   const createBulletin = useCreateBulletin()
@@ -104,8 +92,6 @@ export const BulletinsPage = forwardRef<
         })
       })
   }
-
-  useImperativeHandle(ref, () => ({ addBulletin }))
 
   const commit = (id: string, body: string, draft: Poll | null) => {
     setEditingId(undefined)
@@ -163,80 +149,88 @@ export const BulletinsPage = forwardRef<
     })
   }
 
-  if (isPending) {
-    return (
-      <div
-        className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground"
-        role="status"
-      >
-        <BrailleLoader text="Loading bulletins…" />
-      </div>
-    )
-  }
-
-  if (isError) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-destructive">
-        {error instanceof Error ? error.message : 'Unable to load bulletins'}
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-0 flex-1">
-      <DragDropProvider
-        modifiers={[
-          RestrictToElement.configure({
-            element: () => boardRef.current,
-          }),
-        ]}
-        onDragStart={(event) => {
-          const id = event.operation.source?.id
-          if (typeof id === 'string') raise(id)
-        }}
-        onDragEnd={onDragEnd}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <Button
+        type="button"
+        size="sm"
+        className="absolute top-3 right-3 z-20 shadow-sm"
+        disabled={createBulletin.isPending}
+        onClick={addBulletin}
       >
-        <BulletinBoardSurface boardRef={boardRef}>
-          {ordered.map((bulletin, index) => (
-            <BulletinCard
-              key={bulletin.id}
-              bulletin={bulletin}
-              editing={editingId === bulletin.id}
-              zIndex={index + 1}
-              currentUserId={currentUserId}
-              onBeginEdit={() => setEditingId(bulletin.id)}
-              onCommit={(body, poll) => commit(bulletin.id, body, poll)}
-              onVote={(options) => {
-                void voteBulletin
-                  .mutateAsync({ id: bulletin.id, options })
-                  .catch((reason) => {
-                    toast.add({
-                      title:
-                        reason instanceof Error
-                          ? reason.message
-                          : 'Unable to vote',
-                      type: 'error',
-                    })
-                  })
-              }}
-              onDelete={() => {
-                setEditingId((current) =>
-                  current === bulletin.id ? undefined : current,
-                )
-                void deleteBulletin.mutateAsync(bulletin.id).catch((reason) => {
-                  toast.add({
-                    title:
-                      reason instanceof Error
-                        ? reason.message
-                        : 'Unable to delete bulletin',
-                    type: 'error',
-                  })
-                })
-              }}
-            />
-          ))}
-        </BulletinBoardSurface>
-      </DragDropProvider>
+        <Plus data-icon="inline-start" />
+        Add bulletin
+      </Button>
+      {isPending ? (
+        <div
+          className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground"
+          role="status"
+        >
+          <BrailleLoader text="Loading bulletins…" />
+        </div>
+      ) : isError ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-destructive">
+          {error instanceof Error ? error.message : 'Unable to load bulletins'}
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1">
+          <DragDropProvider
+            modifiers={[
+              RestrictToElement.configure({
+                element: () => boardRef.current,
+              }),
+            ]}
+            onDragStart={(event) => {
+              const id = event.operation.source?.id
+              if (typeof id === 'string') raise(id)
+            }}
+            onDragEnd={onDragEnd}
+          >
+            <BulletinBoardSurface boardRef={boardRef}>
+              {ordered.map((bulletin, index) => (
+                <BulletinCard
+                  key={bulletin.id}
+                  bulletin={bulletin}
+                  editing={editingId === bulletin.id}
+                  zIndex={index + 1}
+                  currentUserId={currentUserId}
+                  onBeginEdit={() => setEditingId(bulletin.id)}
+                  onCommit={(body, poll) => commit(bulletin.id, body, poll)}
+                  onVote={(options) => {
+                    void voteBulletin
+                      .mutateAsync({ id: bulletin.id, options })
+                      .catch((reason) => {
+                        toast.add({
+                          title:
+                            reason instanceof Error
+                              ? reason.message
+                              : 'Unable to vote',
+                          type: 'error',
+                        })
+                      })
+                  }}
+                  onDelete={() => {
+                    setEditingId((current) =>
+                      current === bulletin.id ? undefined : current,
+                    )
+                    void deleteBulletin
+                      .mutateAsync(bulletin.id)
+                      .catch((reason) => {
+                        toast.add({
+                          title:
+                            reason instanceof Error
+                              ? reason.message
+                              : 'Unable to delete bulletin',
+                          type: 'error',
+                        })
+                      })
+                  }}
+                />
+              ))}
+            </BulletinBoardSurface>
+          </DragDropProvider>
+        </div>
+      )}
     </div>
   )
-})
+}

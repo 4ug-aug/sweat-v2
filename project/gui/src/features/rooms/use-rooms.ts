@@ -23,11 +23,13 @@ import {
   applyThreadAttentionEvent,
   compareMessageMarkers,
   hasAnyRoomNotification,
+  isActivelyViewingRoom,
   roomNotification,
   threadAttentionRootsFromRooms,
 } from './room-notifications'
 import type { RoomNotification } from './room-notifications'
 import { setAppDockBadge } from '#/lib/dock-badge'
+import { useWindowActive, windowIsActiveNow } from '#/lib/window-active'
 import {
   runResultAsLiveReply,
   threadRootIdForTrigger,
@@ -103,7 +105,7 @@ function playMentionSound() {
   oscillator.stop(context.currentTime + 0.18)
 }
 
-export function useRooms(userId: string) {
+export function useRooms(userId: string, viewingRoom: boolean) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [threadAttentionByRoom, setThreadAttentionByRoom] = useState<
     Record<string, string[]>
@@ -149,6 +151,7 @@ export function useRooms(userId: string) {
   const roomSocket = useRef<RealtimeStreamHandle | undefined>(undefined)
   const workspaceSocket = useRef<RealtimeStreamHandle | undefined>(undefined)
   const selectedRoomRef = useRef<string | undefined>(undefined)
+  const viewingRoomRef = useRef(viewingRoom)
   const nextCursorRef = useRef<string | undefined>(undefined)
   const loadingOlderRef = useRef(false)
   const historyReadyRef = useRef(false)
@@ -156,9 +159,14 @@ export function useRooms(userId: string) {
   const seenRoomMessagesRef = useRef(readSeenRoomMessages())
   const [seenVersion, setSeenVersion] = useState(0)
   const lastDockBadgeRef = useRef<boolean | null>(null)
+  const roomsRef = useRef(rooms)
 
+  const windowActive = useWindowActive()
   messagesRef.current = messages
   threadRepliesRef.current = threadReplies
+  selectedRoomRef.current = selectedRoomId
+  viewingRoomRef.current = viewingRoom
+  roomsRef.current = rooms
 
   const captureServerSummaries = useCallback((list: readonly RoomMessage[]) => {
     for (const message of list) {
@@ -371,8 +379,12 @@ export function useRooms(userId: string) {
         }),
       )
       if (
-        selectedRoomRef.current === activity.roomId &&
-        document.visibilityState === 'visible'
+        isActivelyViewingRoom({
+          selectedRoomId: selectedRoomRef.current,
+          roomId: activity.roomId,
+          viewingRoom: viewingRoomRef.current,
+          windowActive: windowIsActiveNow(),
+        })
       )
         markRoomSeen(activity.roomId, marker)
     },
@@ -424,14 +436,12 @@ export function useRooms(userId: string) {
   }, [])
 
   useEffect(() => {
-    selectedRoomRef.current = selectedRoomId
-  }, [selectedRoomId])
-
-  useEffect(() => {
-    if (document.visibilityState !== 'visible' || !selectedRoomId) return
-    const room = rooms.find(({ id }) => id === selectedRoomId)
-    if (room?.latestOtherMessage) markRoomSeen(room.id, room.latestOtherMessage)
-  }, [markRoomSeen, rooms, selectedRoomId])
+    if (!viewingRoom || !windowActive || !selectedRoomId) return
+    const room = roomsRef.current.find(({ id }) => id === selectedRoomId)
+    if (!room) return
+    if (room.latestOtherMessage) markRoomSeen(room.id, room.latestOtherMessage)
+    if (room.attentionCount > 0) void acknowledge(selectedRoomId)
+  }, [acknowledge, markRoomSeen, selectedRoomId, viewingRoom, windowActive])
 
   useEffect(() => {
     let stopped = false
@@ -462,9 +472,12 @@ export function useRooms(userId: string) {
             setRooms((current) => orderedRooms(upsert(current, event.room)))
           if (event.type === 'room.removed') forgetRoom(event.roomId)
           if (event.type === 'attention.changed') {
-            const alreadyViewing =
-              selectedRoomRef.current === event.roomId &&
-              document.visibilityState === 'visible'
+            const alreadyViewing = isActivelyViewingRoom({
+              selectedRoomId: selectedRoomRef.current,
+              roomId: event.roomId,
+              viewingRoom: viewingRoomRef.current,
+              windowActive: windowIsActiveNow(),
+            })
             setRooms((current) =>
               current.map((room) =>
                 room.id === event.roomId
@@ -620,15 +633,18 @@ export function useRooms(userId: string) {
               new Map(event.latestSteps.map((step) => [step.runId, [step]])),
             )
             if (
-              event.room.latestOtherMessage &&
-              document.visibilityState === 'visible'
-            )
-              markRoomSeen(event.room.id, event.room.latestOtherMessage)
-            if (
-              event.room.attentionCount > 0 &&
-              document.visibilityState === 'visible'
-            )
-              void acknowledge(selectedRoomId)
+              isActivelyViewingRoom({
+                selectedRoomId: selectedRoomRef.current,
+                roomId: event.room.id,
+                viewingRoom: viewingRoomRef.current,
+                windowActive: windowIsActiveNow(),
+              })
+            ) {
+              if (event.room.latestOtherMessage)
+                markRoomSeen(event.room.id, event.room.latestOtherMessage)
+              if (event.room.attentionCount > 0)
+                void acknowledge(selectedRoomId)
+            }
           }
           if (
             (event.type === 'message.created' ||
@@ -783,16 +799,6 @@ export function useRooms(userId: string) {
       stopped = true
     }
   }, [membersChangedAt, selectedRoomId])
-
-  useEffect(() => {
-    const onVisible = () => {
-      const roomId = selectedRoomRef.current
-      if (document.visibilityState === 'visible' && roomId)
-        void acknowledge(roomId)
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [acknowledge])
 
   const request = async <T>(
     path: string,

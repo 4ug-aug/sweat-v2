@@ -32,6 +32,20 @@ export function hasAnyRoomNotification(
   return Object.values(notificationByRoom).some(Boolean)
 }
 
+/** True only when the account is looking at this room's timeline in a focused window. */
+export function isActivelyViewingRoom(input: {
+  selectedRoomId: string | undefined
+  roomId: string
+  viewingRoom: boolean
+  windowActive: boolean
+}): boolean {
+  return (
+    input.viewingRoom &&
+    input.windowActive &&
+    input.selectedRoomId === input.roomId
+  )
+}
+
 export type ThreadAttentionByRoom = Record<string, string[]>
 
 export function applyThreadAttentionEvent(
