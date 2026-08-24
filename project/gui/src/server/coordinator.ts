@@ -124,6 +124,18 @@ const send = (
   socket.send(JSON.stringify(message))
 }
 
+/**
+ * Topics a socket subscribes to on open, so a broadcast is one native fan-out
+ * of one serialized payload instead of a scan that stringifies per socket. A
+ * workspace socket takes both: `workspace` for shared workspace records and
+ * `user:` for what belongs to that Account alone.
+ */
+const topicsFor = (data: SocketData): string[] => {
+  if (data.scope === 'room') return [`room:${data.roomId}`]
+  if (data.scope === 'grill') return [`grill:${data.grillId}`]
+  return ['workspace', `user:${data.userId}`]
+}
+
 const CONTAINER_PROVIDERS = ['apple-container', 'docker'] as const
 const SANDBOX_PROVIDERS = [...CONTAINER_PROVIDERS, 'smolvm'] as const
 
@@ -350,29 +362,21 @@ export function createCoordinator(options: {
   }
   const agentDefinitions = (): AgentDefinitionSummary[] =>
     options.agentDefinitions?.() ?? rosterDefinitionSummaries()
-  const broadcastWorkspace = (message: WorkspaceServerMessage): void => {
-    for (const socket of sockets)
-      if (socket.data.scope === 'workspace') send(socket, message)
+  const publish = (topic: string, message: ServerMessage): void => {
+    server.publish(topic, JSON.stringify(message))
   }
+  const broadcastWorkspace = (message: WorkspaceServerMessage): void =>
+    publish('workspace', message)
   if (options.issueNotify) {
     options.issueNotify.onCreated = (issue) =>
       broadcastWorkspace({ type: 'issue.created', issue })
     options.issueNotify.onChanged = (issue) =>
       broadcastWorkspace({ type: 'issue.changed', issue })
   }
-  const broadcastRoom = (roomId: string, message: RoomServerMessage): void => {
-    for (const socket of sockets)
-      if (socket.data.scope === 'room' && socket.data.roomId === roomId)
-        send(socket, message)
-  }
-  const broadcastGrill = (
-    grillId: string,
-    message: GrillServerMessage,
-  ): void => {
-    for (const socket of sockets)
-      if (socket.data.scope === 'grill' && socket.data.grillId === grillId)
-        send(socket, message)
-  }
+  const broadcastRoom = (roomId: string, message: RoomServerMessage): void =>
+    publish(`room:${roomId}`, message)
+  const broadcastGrill = (grillId: string, message: GrillServerMessage): void =>
+    publish(`grill:${grillId}`, message)
   const broadcastGrillChanged = (grillId: string, grill: Grill): void =>
     broadcastGrill(grillId, { type: 'grill.changed', grill })
   if (options.grillNotify) {
@@ -466,10 +470,14 @@ export function createCoordinator(options: {
     userIds: Set<string>,
     message: WorkspaceServerMessage,
   ): void => {
-    for (const socket of sockets)
-      if (socket.data.scope === 'workspace' && userIds.has(socket.data.userId))
-        send(socket, message)
+    const payload = JSON.stringify(message)
+    for (const userId of userIds) server.publish(`user:${userId}`, payload)
   }
+  /**
+   * Not a topic: room access is re-read per recipient, so a membership change
+   * can never leave a stale subscription delivering a Room's messages to an
+   * Account that has since lost access.
+   */
   const broadcastWorkspaceMessage = (message: {
     roomId: string
     messageId: string
@@ -867,13 +875,6 @@ export function createCoordinator(options: {
     options.store.appendStep(stored)
     broadcastRoom(run.roomId, { type: 'run.step', runId, step: stored })
   })
-  options.store.failStaleRuns().forEach((run) => {
-    broadcastRoom(run.roomId, { type: 'run.changed', run })
-    notifyRunTerminal(run)
-  })
-  scheduleRunner?.failStaleRuns()
-  scheduleRunner?.tick()
-  issueRunner?.failStaleRuns()
   const scheduleInterval = scheduleRunner
     ? setInterval(() => scheduleRunner!.tick(), 15_000)
     : undefined
@@ -1091,6 +1092,7 @@ export function createCoordinator(options: {
     },
     websocket: {
       open(socket) {
+        for (const topic of topicsFor(socket.data)) socket.subscribe(topic)
         sockets.add(socket)
         sendSnapshot(socket)
         if (socket.data.scope === 'grill')
@@ -1109,6 +1111,15 @@ export function createCoordinator(options: {
       },
     },
   })
+  // After the listener exists, so the sweep's broadcasts have somewhere to
+  // publish. No client can be connected yet: this runs in the same tick.
+  options.store.failStaleRuns().forEach((run) => {
+    broadcastRoom(run.roomId, { type: 'run.changed', run })
+    notifyRunTerminal(run)
+  })
+  scheduleRunner?.failStaleRuns()
+  scheduleRunner?.tick()
+  issueRunner?.failStaleRuns()
   let stopping: Promise<void> | undefined
   return {
     port: server.port,
