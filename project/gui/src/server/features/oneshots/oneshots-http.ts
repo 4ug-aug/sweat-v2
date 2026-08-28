@@ -84,8 +84,7 @@ export function createOneshotsHttp(deps: {
         return json({ run, steps })
       }
       if (request.method === 'DELETE') {
-        const discarded = await deps.oneshotSession.discard(runId, user.id)
-        if (!discarded) return json({ error: 'Oneshot not found' }, 404)
+        await deps.oneshotSession.discard(runId, user.id)
         return json({ ok: true })
       }
     }

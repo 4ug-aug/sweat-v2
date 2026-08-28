@@ -188,6 +188,14 @@ test('oneshots HTTP starts, reads privately, exposes active, and discards', asyn
     user,
   )
   expect(discarded?.status).toBe(200)
+  const discardedAgain = await http(
+    new Request(`http://localhost/api/oneshots/${runId}`, {
+      method: 'DELETE',
+    }),
+    new URL(`http://localhost/api/oneshots/${runId}`),
+    user,
+  )
+  expect(discardedAgain?.status).toBe(200)
   expect(session.get(runId, user.id)).toBeUndefined()
   expect(session.activeForAccount(user.id)).toBeUndefined()
 })
