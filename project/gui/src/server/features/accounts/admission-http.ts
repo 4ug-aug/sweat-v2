@@ -58,6 +58,11 @@ export type AdmissionOptions = {
   listUsers: () => Promise<WorkspaceAccount[]>
   banUser: (request: Request, userId: string) => Promise<unknown>
   unbanUser: (request: Request, userId: string) => Promise<unknown>
+  resetUserPassword: (
+    request: Request,
+    userId: string,
+    newPassword: string,
+  ) => Promise<Response>
   llm?: {
     public(): PublicLlmConfig
     save(input: LlmConfigInput): PublicLlmConfig
@@ -250,6 +255,24 @@ export function createAdmissionHttpHandler(
       return user instanceof Response
         ? user
         : json({ users: await options.listUsers() })
+    }
+
+    const memberPassword = url.pathname.match(
+      /^\/api\/workspace\/settings\/members\/([^/]+)\/password$/,
+    )
+    if (memberPassword && request.method === 'POST') {
+      const user = await administrator(request)
+      if (user instanceof Response) return user
+      const newPassword = (await readBody(request))?.newPassword
+      if (typeof newPassword !== 'string')
+        return json({ error: 'A new password is required' }, 400)
+      const response = await options.resetUserPassword(
+        request,
+        memberPassword[1],
+        newPassword,
+      )
+      if (response.ok) options.onSuspend(memberPassword[1])
+      return response
     }
 
     if (url.pathname === '/api/workspace/settings/llm' && options.llm) {

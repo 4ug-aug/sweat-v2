@@ -24,6 +24,7 @@ test('admin can read and save run tool assignment over HTTP', async () => {
     listUsers: async () => [],
     banUser: async () => ({}),
     unbanUser: async () => ({}),
+    resetUserPassword: async () => Response.json({}),
     grantTools,
   })
   const url = new URL('http://localhost/api/workspace/settings/grant-tools')

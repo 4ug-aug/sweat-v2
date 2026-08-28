@@ -1,7 +1,16 @@
 import { BrailleLoader } from '#/components/ui/braille-loader'
 import { Button } from '#/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
+import { Input } from '#/components/ui/input'
 import { SettingsCard } from '#/features/workspace/settings-card'
-import { apiFetch, apiJson } from '#/lib/api-transport'
+import { apiFetch, apiJson, apiJsonBody } from '#/lib/api-transport'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -35,9 +44,16 @@ function useSettingsMembers() {
 
 export function MembersSettings({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient()
-  const { data: members = [], isPending, error, isFetching } =
-    useSettingsMembers()
+  const {
+    data: members = [],
+    isPending,
+    error,
+    isFetching,
+  } = useSettingsMembers()
   const [actionError, setActionError] = useState<string>()
+  const [message, setMessage] = useState<string>()
+  const [resetMember, setResetMember] = useState<Member>()
+  const [newPassword, setNewPassword] = useState('')
 
   const changeMember = useMutation({
     mutationFn: async (member: Member) => {
@@ -73,19 +89,44 @@ export function MembersSettings({ currentUserId }: { currentUserId: string }) {
     changeMember.mutate(member)
   }
 
-  const busy = changeMember.isPending || isFetching
+  const resetPassword = useMutation({
+    mutationFn: ({ member, password }: { member: Member; password: string }) =>
+      apiJsonBody(
+        `/api/workspace/settings/members/${member.id}/password`,
+        'POST',
+        { newPassword: password },
+        'Could not reset password',
+      ),
+    onSuccess: (_result, { member }) => {
+      setResetMember(undefined)
+      setNewPassword('')
+      setActionError(undefined)
+      setMessage(
+        `Password reset for ${member.username ?? member.name}; existing sessions were signed out.`,
+      )
+    },
+    onError: (reason) =>
+      setActionError(
+        reason instanceof Error ? reason.message : 'Could not reset password',
+      ),
+  })
+
+  const busy = changeMember.isPending || resetPassword.isPending || isFetching
 
   return (
     <SettingsCard
       title="Members"
-      description="Suspend or restore workspace access."
+      description="Reset passwords, suspend, or restore workspace access."
     >
       {(error || actionError) && (
         <p className="mb-3 text-sm text-destructive" role="alert">
           {actionError ??
-            (error instanceof Error
-              ? error.message
-              : 'Could not load members')}
+            (error instanceof Error ? error.message : 'Could not load members')}
+        </p>
+      )}
+      {message && (
+        <p className="mb-3 text-sm text-muted-foreground" role="status">
+          {message}
         </p>
       )}
       {isPending ? (
@@ -110,20 +151,98 @@ export function MembersSettings({ currentUserId }: { currentUserId: string }) {
                   {member.email}
                 </span>
               </span>
-              {member.id !== currentUserId && member.role !== 'admin' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => requestMemberChange(member)}
-                >
-                  {member.banned ? 'Restore' : 'Suspend'}
-                </Button>
+              {member.id !== currentUserId && (
+                <span className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => {
+                      setResetMember(member)
+                      setNewPassword('')
+                      setActionError(undefined)
+                      setMessage(undefined)
+                    }}
+                  >
+                    Reset password
+                  </Button>
+                  {member.role !== 'admin' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => requestMemberChange(member)}
+                    >
+                      {member.banned ? 'Restore' : 'Suspend'}
+                    </Button>
+                  )}
+                </span>
               )}
             </div>
           ))}
         </div>
       )}
+      <Dialog
+        open={Boolean(resetMember)}
+        onOpenChange={(open) => {
+          if (!open && !resetPassword.isPending) setResetMember(undefined)
+        }}
+      >
+        <DialogContent>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (resetMember)
+                resetPassword.mutate({
+                  member: resetMember,
+                  password: newPassword,
+                })
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                Reset password for {resetMember?.username ?? resetMember?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Their existing sessions will be signed out.
+              </DialogDescription>
+            </DialogHeader>
+            {actionError && (
+              <p className="mt-4 text-sm text-destructive" role="alert">
+                {actionError}
+              </p>
+            )}
+            <Input
+              autoComplete="new-password"
+              autoFocus
+              className="my-4"
+              minLength={8}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="New password"
+              required
+              type="password"
+              value={newPassword}
+            />
+            <DialogFooter>
+              <Button
+                disabled={resetPassword.isPending}
+                onClick={() => setResetMember(undefined)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button disabled={resetPassword.isPending} type="submit">
+                {resetPassword.isPending ? (
+                  <BrailleLoader text="Resetting" />
+                ) : (
+                  'Reset password'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </SettingsCard>
   )
 }

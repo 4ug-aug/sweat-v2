@@ -28,6 +28,7 @@ test('admin can save, link, and clear workspace connections over HTTP', async ()
       listUsers: async () => [],
       banUser: async () => ({}),
       unbanUser: async () => ({}),
+      resetUserPassword: async () => Response.json({}),
       connections,
     })
 

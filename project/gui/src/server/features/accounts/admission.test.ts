@@ -1,7 +1,7 @@
 import { migratedDatabase } from '#/server/test-db'
 import { expect, test } from 'bun:test'
 import { createAdmissionStore } from './admission'
-import { invitationUrl } from './admission-http'
+import { createAdmissionHttpHandler, invitationUrl } from './admission-http'
 import { createCoordinator } from '#/server/coordinator'
 import { createRoomMessageHub } from '#/server/features/rooms/room-hub'
 import { createSqliteRoomStore } from '#/server/features/rooms/room-store'
@@ -23,6 +23,49 @@ test('desktop invitations identify the server and token', () => {
   expect(url.hostname).toBe('invite')
   expect(url.pathname).toBe('/invite-token')
   expect(url.searchParams.get('server')).toBe('https://sweat.example.com')
+})
+
+test('administrator can reset a member password and disconnect sessions', async () => {
+  const sqlite = makeDatabase()
+  let reset: { userId: string; newPassword: string } | undefined
+  let disconnected: string | undefined
+  const handler = createAdmissionHttpHandler({
+    store: createAdmissionStore(sqlite),
+    createAccount: async () => Response.json({}),
+    listUsers: async () => [],
+    banUser: async () => ({}),
+    unbanUser: async () => ({}),
+    resetUserPassword: async (_request, userId, newPassword) => {
+      reset = { userId, newPassword }
+      return Response.json({ success: true })
+    },
+    authenticate: async (request) =>
+      request.headers.get('cookie') === 'admin'
+        ? { id: 'admin', name: 'admin', role: 'admin' }
+        : { id: 'member', name: 'member', role: 'user' },
+    guiOrigin: 'http://localhost:3000',
+    onSuspend: (userId) => {
+      disconnected = userId
+    },
+  })
+  const request = (cookie: string) =>
+    new Request(
+      'http://localhost/api/workspace/settings/members/member/password',
+      {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ newPassword: 'new-password' }),
+      },
+    )
+  const url = new URL(
+    'http://localhost/api/workspace/settings/members/member/password',
+  )
+
+  expect((await handler(request('member'), url))?.status).toBe(403)
+  expect((await handler(request('admin'), url))?.status).toBe(200)
+  expect(reset).toEqual({ userId: 'member', newPassword: 'new-password' })
+  expect(disconnected).toBe('member')
+  sqlite.close()
 })
 
 test('setup token is created once and only its hash persists', () => {
@@ -191,6 +234,7 @@ test('admission endpoints close open signup and enforce the administrator bounda
         return { ok: true }
       },
       unbanUser: async () => ({ ok: true }),
+      resetUserPassword: async () => Response.json({ success: true }),
       createAccount,
     },
   })

@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, expect, test } from 'bun:test'
 import { connectWorkspaceStream } from './api-transport'
 import { setServerBase } from './server-config'
+import { monitorSession } from '../App'
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = []
@@ -109,6 +110,18 @@ test('workspace stream reconnects for remaining subscribers', () => {
 
   a.handle.close()
   b.handle.close()
+})
+
+test('workspace disconnect refreshes the cached account session', () => {
+  let refetches = 0
+  const handle = monitorSession(async () => {
+    refetches++
+  })
+  openHandles.push(handle)
+
+  FakeWebSocket.instances[0]?.onclose?.()
+
+  expect(refetches).toBe(1)
 })
 
 test('closing the last subscriber does not start a reconnect', () => {
