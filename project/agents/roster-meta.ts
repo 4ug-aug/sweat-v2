@@ -42,7 +42,6 @@ export type RosterDefinitionSummary = {
   name: string;
   description: string;
   kind: AgentRuntimeKind;
-  icon: string;
   includeRepository: boolean;
   visibility?: "private" | "workspace";
   creatorAccountId?: string;
@@ -52,10 +51,6 @@ export type RosterDefinitionSummary = {
   capabilities: { id: string; name: string; tools: string[] }[];
   skills: { id: string; name: string; description: string }[];
 };
-
-export function agentIcon(kind: AgentRuntimeKind): string {
-  return kind === "cursor" ? "bot" : "bot-message-square";
-}
 
 function presentedCapabilities(
   githubAccess: boolean,
@@ -104,7 +99,6 @@ export function summaryFromPerson(
     name: person.name,
     description: person.description,
     kind: person.kind,
-    icon: agentIcon(person.kind),
     includeRepository: person.githubAccess,
     ...(person.instructions ? { instructions: person.instructions } : {}),
     ...(person.visibility ? { visibility: person.visibility } : {}),
@@ -158,7 +152,6 @@ export function rosterDefinitionSummaries(
       name: person.name,
       description: person.description,
       kind: person.kind,
-      icon: person.icon,
       includeRepository: person.includeRepository,
       capabilities,
       skills: [...(skillsByAgent.get(person.id) ?? [])],

@@ -83,7 +83,6 @@ export type AgentDefinitionSummary = {
   name: string
   description: string
   kind?: 'cursor' | 'openai-agents'
-  icon: string
   includeRepository: boolean
   visibility?: 'private' | 'workspace'
   creatorAccountId?: string
