@@ -504,6 +504,7 @@ if (import.meta.main) {
             creatingAgentId: record.creatingAgentId,
             archivedAt: record.archivedAt,
             instructions: record.instructions,
+            color: record.color,
           },
           byAgent.get(record.id) ?? [],
           connectionCapabilities.get(record.id) ?? [],

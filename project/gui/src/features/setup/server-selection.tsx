@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { setServerBase } from '#/lib/server-config'
+import { ColonyMark } from '#/components/colony-mark'
 import { Button } from '#/components/ui/button'
 import { BrailleLoader } from '#/components/ui/braille-loader'
 import { Input } from '#/components/ui/input'
@@ -46,7 +47,7 @@ export function ServerSelection({ onConnected }: { onConnected: () => void }) {
       onSubmit={(event) => void submit(event)}
     >
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <img src="/colony-mark.svg" alt="" className="size-8 dark:invert" />
+        <ColonyMark className="size-8" />
         Colony
       </div>
       <div className="flex flex-col gap-1">

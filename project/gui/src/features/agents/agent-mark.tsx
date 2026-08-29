@@ -1,32 +1,26 @@
-import colonyMarkSvg from '#/features/agents/colony-mark.svg?raw'
+import { ColonyMark } from '#/components/colony-mark'
+import { useAgentDefinitions } from '#/features/agents/use-agent-definitions'
 import { cn } from '#/lib/utils'
-import { useId } from 'react'
-import { agentMarkClass } from './agent-color'
+import { agentInk, agentMarkClass } from './agent-color'
 
-export function AgentMarkGlyph({ className }: { className?: string }) {
-  const uid = useId().replaceAll(':', '')
-  const html = colonyMarkSvg
-    .replaceAll('ant-body-shape', `ant-body-shape-${uid}`)
-    .replace('fill: #282522', 'fill: currentColor')
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('block shrink-0 [&_svg]:block [&_svg]:size-full', className)}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  )
-}
+export { ColonyMark as AgentMarkGlyph } from '#/components/colony-mark'
 
 export function AgentMark({
   agentId,
+  color,
   className,
 }: {
   agentId: string
+  color?: string | null
   className?: string
 }) {
+  const { data: agents = [] } = useAgentDefinitions()
+  const resolved = color ?? agents.find((agent) => agent.id === agentId)?.color
+  const ink = agentInk(resolved)
   return (
-    <AgentMarkGlyph
-      className={cn('size-6', agentMarkClass(agentId), className)}
+    <ColonyMark
+      className={cn('size-6', agentMarkClass(agentId, resolved), className)}
+      style={ink ? { color: ink } : undefined}
     />
   )
 }
@@ -35,22 +29,28 @@ export function AgentMark({
 export function AgentMentionChip({
   agentId,
   label,
+  color,
   className,
 }: {
   agentId: string
   label: string
+  color?: string | null
   className?: string
 }) {
+  const { data: agents = [] } = useAgentDefinitions()
+  const resolved = color ?? agents.find((agent) => agent.id === agentId)?.color
+  const ink = agentInk(resolved)
   return (
     <span
       data-slot="agent-mention-chip"
       className={cn(
         'inline-flex items-center gap-1 align-middle font-semibold',
-        agentMarkClass(agentId),
+        agentMarkClass(agentId, resolved),
         className,
       )}
+      style={ink ? { color: ink } : undefined}
     >
-      <AgentMark agentId={agentId} className="size-5" />
+      <AgentMark agentId={agentId} color={resolved} className="size-5" />
       <span>{label}</span>
     </span>
   )

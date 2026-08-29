@@ -10,8 +10,8 @@ import { useRooms } from '#/features/rooms/use-rooms'
 import { MachineSessionHeader } from '#/features/vms/components/machine-session'
 import { useStoredBoolean } from '#/hooks/use-stored-boolean'
 import { useWindowKeydown } from '#/hooks/use-window-keydown'
+import { ColonyMark } from '#/components/colony-mark'
 import {
-  Bot,
   Box,
   CalendarClock,
   Hash,
@@ -262,7 +262,7 @@ export function Dashboard({
                   {view === 'schedules' ? (
                     <CalendarClock className="size-4 text-muted-foreground" />
                   ) : view === 'agents' ? (
-                    <Bot className="size-4 text-muted-foreground" />
+                    <ColonyMark className="size-4 text-muted-foreground" />
                   ) : view === 'vms' ? (
                     <Box className="size-4 text-muted-foreground" />
                   ) : room?.visibility === 'private' ? (

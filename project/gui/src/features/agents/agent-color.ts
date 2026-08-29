@@ -1,3 +1,5 @@
+import { parseAccountColor } from '#/lib/account-color'
+
 /** Mark fill / mention label. */
 const TONES: Record<string, string> = {
   'software-engineer': 'text-agent-software-engineer',
@@ -20,7 +22,15 @@ function toneSlot(agentId: string): number {
   return (hash >>> 0) % MARK_FALLBACK.length
 }
 
-export function agentMarkClass(agentId: string): string {
+export function agentInk(color?: string | null): string | undefined {
+  return color ? parseAccountColor(color) : undefined
+}
+
+export function agentMarkClass(
+  agentId: string,
+  color?: string | null,
+): string {
+  if (agentInk(color)) return ''
   return TONES[agentId] ?? MARK_FALLBACK[toneSlot(agentId)]!
 }
 

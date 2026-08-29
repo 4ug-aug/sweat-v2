@@ -281,6 +281,13 @@
       "when": 1808000000000,
       "tag": "0039_agent_definition",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1809000000000,
+      "tag": "0040_agent_definition_color",
+      "breakpoints": true
     }
   ]
 }

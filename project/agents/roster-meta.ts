@@ -50,6 +50,7 @@ export type RosterDefinitionSummary = {
   instructions?: string;
   capabilities: { id: string; name: string; tools: string[] }[];
   skills: { id: string; name: string; description: string }[];
+  color?: string;
 };
 
 function presentedCapabilities(
@@ -90,6 +91,7 @@ export function summaryFromPerson(
     creatingAgentId?: string;
     archivedAt?: number;
     instructions?: string;
+    color?: string;
   },
   skills: readonly { id: string; name: string; description: string }[] = [],
   linked: readonly { id: string; name: string; tools: string[] }[] = [],
@@ -111,6 +113,7 @@ export function summaryFromPerson(
     ...(person.archivedAt !== undefined
       ? { archivedAt: person.archivedAt }
       : {}),
+    ...(person.color ? { color: person.color } : {}),
     capabilities: presentedCapabilities(person.githubAccess, linked),
     skills: [...skills],
   };

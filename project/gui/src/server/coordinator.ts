@@ -721,6 +721,7 @@ export function createCoordinator(options: {
             creatingAgentId: record.creatingAgentId,
             archivedAt: record.archivedAt,
             instructions: record.instructions,
+            color: record.color,
           }),
         list: agentDefinitions,
         pauseSchedules: options.scheduleStore

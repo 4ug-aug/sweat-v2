@@ -32,6 +32,7 @@ function harness() {
         creatingAgentId: record.creatingAgentId,
         archivedAt: record.archivedAt,
         instructions: record.instructions,
+        color: record.color,
       }),
     pauseSchedules: (id) => {
       paused.push(id)
@@ -79,6 +80,18 @@ test('any Account can create an Agent definition and only its creator can archiv
   expect(created.body.agent.visibility).toBe('private')
   expect(created.body.agent.creatorAccountId).toBe('ada')
   expect(created.body.agent.includeRepository).toBe(false)
+  expect(created.body.agent.color).toBeUndefined()
+
+  const painted = await call('POST', '/api/agent-definitions', {
+    name: 'Painter',
+    description: 'Picks colors',
+    instructions: 'Stay vivid.',
+    kind: 'openai-agents',
+    visibility: 'workspace',
+    color: '#1D4ED8',
+  })
+  expect(painted.status).toBe(201)
+  expect(painted.body.agent.color).toBe('#1d4ed8')
 
   const listedForBob = await call('GET', '/api/agent-definitions', undefined, bob)
   expect(
@@ -177,6 +190,7 @@ test('GET lists instructions and optional skill summaries for the viewer', async
         creatingAgentId: record.creatingAgentId,
         archivedAt: record.archivedAt,
         instructions: record.instructions,
+        color: record.color,
       }),
     list: (viewer) =>
       store.listVisible(viewer).map((record) => ({
@@ -189,6 +203,7 @@ test('GET lists instructions and optional skill summaries for the viewer', async
           visibility: record.visibility,
           creatorAccountId: record.creatorAccountId,
           instructions: record.instructions,
+          color: record.color,
         }),
         skills: [{ id: 'pack', name: 'Pack', description: 'A skill' }],
       })),

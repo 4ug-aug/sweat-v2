@@ -138,3 +138,28 @@ test('mentionPattern omits archived slugs while mentionHandles keeps them reserv
   expect(store.mentionPattern().test(' @antboy do this')).toBe(true)
   sqlite.close()
 })
+
+test('create, update, and duplicate persist an Agent color', () => {
+  const sqlite = migratedDatabase()
+  seedAccounts(sqlite, [{ id: 'ada', name: 'Ada' }])
+  const store = createAgentDefinitionStore(sqlite)
+  const created = store.create(
+    {
+      name: 'Painter',
+      description: 'Picks colors',
+      instructions: 'Stay vivid.',
+      kind: 'openai-agents',
+      visibility: 'workspace',
+      creatorAccountId: 'ada',
+      color: '#1D4ED8',
+    },
+    1,
+  )
+  expect(created.color).toBe('#1d4ed8')
+  const updated = store.update('painter', 'ada', { color: '#be123c' }, 2)
+  expect(updated.color).toBe('#be123c')
+  const copy = store.duplicate('painter', { creatorAccountId: 'ada' }, 3)
+  expect(copy.color).toBe('#be123c')
+  expect(copy.id).not.toBe('painter')
+  sqlite.close()
+})

@@ -26,6 +26,7 @@ import {
   SidebarTrigger,
 } from '#/components/ui/sidebar'
 import { toast } from '#/components/ui/toast'
+import { ColonyMark } from '#/components/colony-mark'
 import { GitHubIcon } from '#/components/github-icon'
 import { AgentMark } from '#/features/agents/agent-mark'
 import { useAgentDefinitions } from '#/features/agents/use-agent-definitions'
@@ -46,7 +47,6 @@ import {
   StickyNote,
   ScrollText,
   Settings,
-  Bot,
   Box,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -361,7 +361,7 @@ export function RoomSidebar({
                   isActive={view === 'agents'}
                   onClick={onOpenAgents}
                 >
-                  <Bot />
+                  <ColonyMark className="size-4" />
                   <span>Agents</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -1,5 +1,6 @@
 import type { AgentRuntimeKind } from '#project/agents/definition'
 import { SEEDED_AGENT_DEFINITIONS } from '#project/agents/seed-definitions'
+import { parseAccountColor } from '#/lib/account-color'
 import type { Sqlite } from '#/server/sqlite'
 
 export type AgentVisibility = 'private' | 'workspace'
@@ -14,6 +15,7 @@ export type AgentDefinitionRecord = {
   creatorAccountId: string
   creatingAgentId?: string
   githubAccess: boolean
+  color?: string
   archivedAt?: number
   createdAt: number
   updatedAt: number
@@ -28,6 +30,7 @@ export type CreateAgentDefinitionInput = {
   creatorAccountId: string
   creatingAgentId?: string
   githubAccess?: boolean
+  color?: string
 }
 
 export type DuplicateAgentDefinitionInput = {
@@ -41,6 +44,7 @@ export type UpdateAgentDefinitionPatch = Partial<{
   instructions: string
   visibility: AgentVisibility
   githubAccess: boolean
+  color: string | null
 }>
 
 export class AgentDefinitionError extends Error {
@@ -63,10 +67,15 @@ type Row = {
   creator_account_id: string
   creating_agent_id: string | null
   github_access: number
+  color: string | null
   archived_at: number | null
   created_at: number
   updated_at: number
 }
+
+const COLUMNS = `id, name, description, instructions, runtime_kind, visibility,
+            creator_account_id, creating_agent_id, github_access, color, archived_at,
+            created_at, updated_at`
 
 const mapRow = (row: Row): AgentDefinitionRecord => ({
   id: row.id,
@@ -78,6 +87,7 @@ const mapRow = (row: Row): AgentDefinitionRecord => ({
   creatorAccountId: row.creator_account_id,
   ...(row.creating_agent_id ? { creatingAgentId: row.creating_agent_id } : {}),
   githubAccess: row.github_access === 1,
+  ...(row.color ? { color: row.color } : {}),
   ...(row.archived_at != null ? { archivedAt: row.archived_at } : {}),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -105,16 +115,20 @@ const requireText = (value: string, field: string, max: number): string => {
   return trimmed
 }
 
+const normalizeColor = (value: string | null | undefined): string | undefined => {
+  if (value == null || value.trim() === '') return undefined
+  const parsed = parseAccountColor(value)
+  if (!parsed) throw new AgentDefinitionError('Invalid color', 'invalid')
+  return parsed
+}
+
 const visibleTo = (row: AgentDefinitionRecord, viewerAccountId: string) =>
   row.archivedAt === undefined &&
   (row.visibility === 'workspace' || row.creatorAccountId === viewerAccountId)
 
 export function createAgentDefinitionStore(sqlite: Sqlite) {
   const selectById = sqlite.prepare(
-    `SELECT id, name, description, instructions, runtime_kind, visibility,
-            creator_account_id, creating_agent_id, github_access, archived_at,
-            created_at, updated_at
-     FROM agent_definition WHERE id = ?`,
+    `SELECT ${COLUMNS} FROM agent_definition WHERE id = ?`,
   )
 
   const get = (id: string): AgentDefinitionRecord | undefined => {
@@ -129,9 +143,9 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
       .prepare(
         `INSERT INTO agent_definition (
            id, name, description, instructions, runtime_kind, visibility,
-           creator_account_id, creating_agent_id, github_access, archived_at,
+           creator_account_id, creating_agent_id, github_access, color, archived_at,
            created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
@@ -143,6 +157,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
         record.creatorAccountId,
         record.creatingAgentId ?? null,
         record.githubAccess ? 1 : 0,
+        record.color ?? null,
         record.archivedAt ?? null,
         record.createdAt,
         record.updatedAt,
@@ -191,10 +206,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
     listVisible(viewerAccountId: string): AgentDefinitionRecord[] {
       const rows = sqlite
         .prepare(
-          `SELECT id, name, description, instructions, runtime_kind, visibility,
-                  creator_account_id, creating_agent_id, github_access, archived_at,
-                  created_at, updated_at
-           FROM agent_definition
+          `SELECT ${COLUMNS} FROM agent_definition
            ORDER BY name COLLATE NOCASE, id`,
         )
         .all() as Row[]
@@ -205,10 +217,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
       return (
         sqlite
           .prepare(
-            `SELECT id, name, description, instructions, runtime_kind, visibility,
-                    creator_account_id, creating_agent_id, github_access, archived_at,
-                    created_at, updated_at
-             FROM agent_definition
+            `SELECT ${COLUMNS} FROM agent_definition
              ORDER BY name COLLATE NOCASE, id`,
           )
           .all() as Row[]
@@ -223,6 +232,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
       const name = requireText(input.name, 'name', 80)
       const description = requireText(input.description, 'description', 500)
       const instructions = requireText(input.instructions, 'instructions', 20_000)
+      const color = normalizeColor(input.color)
       if (input.creatingAgentId && !get(input.creatingAgentId))
         throw new AgentDefinitionError('Unknown creating agent', 'invalid')
       const record: AgentDefinitionRecord = {
@@ -237,6 +247,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
           ? { creatingAgentId: input.creatingAgentId }
           : {}),
         githubAccess: Boolean(input.githubAccess),
+        ...(color ? { color } : {}),
         createdAt: now,
         updatedAt: now,
       }
@@ -262,6 +273,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
           creatorAccountId: input.creatorAccountId,
           creatingAgentId: input.creatingAgentId,
           githubAccess: source.githubAccess,
+          color: source.color,
         },
         now,
       )
@@ -288,11 +300,13 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
       if (!isVisibility(visibility))
         throw new AgentDefinitionError('Invalid visibility', 'invalid')
       const githubAccess = patch.githubAccess ?? current.githubAccess
+      const color =
+        patch.color === undefined ? current.color : normalizeColor(patch.color)
       sqlite
         .prepare(
           `UPDATE agent_definition
            SET name = ?, description = ?, instructions = ?, visibility = ?,
-               github_access = ?, updated_at = ?
+               github_access = ?, color = ?, updated_at = ?
            WHERE id = ?`,
         )
         .run(
@@ -301,6 +315,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
           instructions,
           visibility,
           githubAccess ? 1 : 0,
+          color ?? null,
           now,
           id,
         )

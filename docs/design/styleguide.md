@@ -294,11 +294,38 @@ bar, or putting Delete next to Assign without a separator.
 
 ## Icons and avatars
 
-Lucide throughout. List glyphs 14px; chrome 16px; stroke inherits currentColor.
+Lucide throughout for **actions and status**. List glyphs 14px; chrome 16px;
+stroke inherits currentColor.
 
-People: colored initials circle (`font-semibold`, ~9px type at 20px). Agents:
-muted circle + ant silhouette (mask, `currentColor`). Unassigned: `CircleDashed`
-with a tiny `UserRound` nested inside.
+**Never Lucide `Bot`** (or `BotMessageSquare`, `BotOff`, or any robot glyph).
+The Colony ant is the agent/brand mark.
+
+**Colony mark** — `project/gui/public/colony-mark.svg` is the brand file (also
+served at `/colony-mark.svg`). Render it with `ColonyMark`
+(`#/components/colony-mark`), which inlines the same SVG from
+`src/components/colony-mark.svg` (Vite cannot import `public/`) and paints with
+`currentColor`. Keep those two files identical. Use `ColonyMark` anywhere a
+robot icon would otherwise go: Agents nav, Agents view header, sign-in, empty
+states, generic “this is an agent” chrome. A specific agent uses `AgentMark` /
+`AgentMarkGlyph` (same mark, tinted with that agent’s color). Do not use Lucide
+`Bot`. Do not use `<img src="/colony-mark.svg">` in-product when the mark
+should follow the surrounding text color.
+
+People: colored initials circle (`font-semibold`, ~9px type at 20px).
+Unassigned: `CircleDashed` with a tiny `UserRound` nested inside.
+
+Labeled actions still take a leading Lucide icon (`data-icon="inline-start"`),
+same as schedules:
+
+| Action | Icon |
+|---|---|
+| New / Create | `Plus` |
+| Duplicate | `CopyPlus` |
+| Edit / Save | `SquarePen` |
+| Archive | `Archive` |
+| Workspace visibility | `Users` |
+| Private visibility | `Lock` |
+| GitHub | `GitHubIcon` (not Lucide) |
 
 Hover cards for people; tooltips for unlabeled icon buttons.
 
@@ -347,7 +374,8 @@ Always include `motion-reduce:animate-none` / `motion-reduce:transition-none`.
 - Semantic tokens. Warm neutrals. One primary per view.
 - Fused group header + table. 36px rows. Hover-reveal checkboxes.
 - Ghost filters. Container-query column hiding. Truncation.
-- Lucide status icons. Tiny tinted tag chips if needed.
+- Lucide status and action icons. Colony mark for agents. Tiny tinted tag
+  chips if needed.
 - Quiet enter animations. Braille loaders. Inverted tooltips.
 
 ## Do not
@@ -361,6 +389,8 @@ Always include `motion-reduce:animate-none` / `motion-reduce:transition-none`.
   is available — use Geist.
 - Spinners, skeleton shimmer walls, or autoplaying motion that ignores
   `prefers-reduced-motion`.
+- Lucide `Bot` (or any robot glyph). Use `ColonyMark` from
+  `public/colony-mark.svg`.
 - Putting every action on-screen; hide rare actions in context menus / overflow.
 
 ## Applying this to another product

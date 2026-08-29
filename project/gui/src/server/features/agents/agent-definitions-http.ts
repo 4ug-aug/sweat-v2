@@ -71,6 +71,7 @@ export function createAgentDefinitionsHttp(deps: {
               : 'workspace',
             creatorAccountId: user.id,
             githubAccess,
+            ...(typeof body.color === 'string' ? { color: body.color } : {}),
           },
           now(),
         )
@@ -170,6 +171,7 @@ export function createAgentDefinitionsHttp(deps: {
             ...(typeof body.githubAccess === 'boolean'
               ? { githubAccess: body.githubAccess }
               : {}),
+            ...(typeof body.color === 'string' ? { color: body.color } : {}),
           },
           now(),
         )

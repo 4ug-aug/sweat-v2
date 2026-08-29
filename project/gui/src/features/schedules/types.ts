@@ -13,6 +13,7 @@ export type AgentDefinition = {
   instructions?: string
   capabilities: { id: string; name: string; tools: string[] }[]
   skills: { id: string; name: string; description: string }[]
+  color?: string
 }
 export type Schedule = {
   id: string
