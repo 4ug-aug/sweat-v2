@@ -10,6 +10,7 @@ import {
   ANTBOY_ID,
   SOFTWARE_ENGINEER_ID,
   WORKSPACE_PEOPLE,
+  type SeededAgentId,
   capabilityPresentation,
   type WorkspacePerson,
 } from "./roster-people";
@@ -18,24 +19,23 @@ export * from "./roster-people";
 
 export type WorkspaceRosterPerson = WorkspacePerson & { role: AgentRole };
 
-const rolesById: Record<string, AgentRole> = {
+const rolesById = {
   [SOFTWARE_ENGINEER_ID]: softwareEngineerRole,
   [ANTBOY_ID]: antboyRole,
-};
+} satisfies Record<SeededAgentId, AgentRole>;
 
-export const WORKSPACE_ROSTER: readonly WorkspaceRosterPerson[] =
-  WORKSPACE_PEOPLE.map((person) => {
-    const role = rolesById[person.id];
-    if (!role) {
-      throw new Error(`Workspace person ${person.id} has no role`);
-    }
-    if (role.id !== person.id) {
-      throw new Error(
-        `Role ${role.id} does not match workspace person ${person.id}`,
-      );
-    }
-    return { ...person, role };
-  });
+export const WORKSPACE_ROSTER: readonly WorkspaceRosterPerson[] = (
+  Object.keys(WORKSPACE_PEOPLE) as SeededAgentId[]
+).map((id) => {
+  const person = WORKSPACE_PEOPLE[id];
+  const role = rolesById[id];
+  if (role.id !== person.id) {
+    throw new Error(
+      `Role ${role.id} does not match workspace person ${person.id}`,
+    );
+  }
+  return { ...person, role };
+});
 
 export type RosterDefinitionSummary = {
   id: string;
@@ -46,6 +46,8 @@ export type RosterDefinitionSummary = {
   visibility?: "private" | "workspace";
   creatorAccountId?: string;
   creatingAgentId?: string;
+  updaterAccountId?: string;
+  updatedAt?: number;
   archivedAt?: number;
   instructions?: string;
   capabilities: { id: string; name: string; tools: string[] }[];
@@ -89,6 +91,8 @@ export function summaryFromPerson(
     visibility?: "private" | "workspace";
     creatorAccountId?: string;
     creatingAgentId?: string;
+    updaterAccountId?: string;
+    updatedAt?: number;
     archivedAt?: number;
     instructions?: string;
     color?: string;
@@ -110,6 +114,10 @@ export function summaryFromPerson(
     ...(person.creatingAgentId
       ? { creatingAgentId: person.creatingAgentId }
       : {}),
+    ...(person.updaterAccountId
+      ? { updaterAccountId: person.updaterAccountId }
+      : {}),
+    ...(person.updatedAt !== undefined ? { updatedAt: person.updatedAt } : {}),
     ...(person.archivedAt !== undefined
       ? { archivedAt: person.archivedAt }
       : {}),

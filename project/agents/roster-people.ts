@@ -123,15 +123,15 @@ export type WorkspacePerson = {
 };
 
 /** Single source of truth for who is in the workspace and how they present. */
-export const WORKSPACE_PEOPLE: readonly WorkspacePerson[] = [
-  {
+export const WORKSPACE_PEOPLE = {
+  [SOFTWARE_ENGINEER_ID]: {
     id: SOFTWARE_ENGINEER_ID,
     name: "Software engineer",
     description: "Build, debug, and review code in a checked-out repository.",
     kind: "cursor",
     includeRepository: true,
   },
-  {
+  [ANTBOY_ID]: {
     id: ANTBOY_ID,
     name: "Antboy",
     description:
@@ -139,20 +139,26 @@ export const WORKSPACE_PEOPLE: readonly WorkspacePerson[] = [
     kind: "openai-agents",
     includeRepository: false,
   },
-];
+} as const satisfies Record<string, WorkspacePerson>;
+
+export type SeededAgentId = keyof typeof WORKSPACE_PEOPLE;
+
+export function isSeededAgentId(id: string): id is SeededAgentId {
+  return Object.hasOwn(WORKSPACE_PEOPLE, id);
+}
 
 export function rosterPerson(id: string): WorkspacePerson | undefined {
-  return WORKSPACE_PEOPLE.find((person) => person.id === id);
+  return isSeededAgentId(id) ? WORKSPACE_PEOPLE[id] : undefined;
 }
 
 export function rosterMentionHandles(): ReadonlySet<string> {
-  return new Set(WORKSPACE_PEOPLE.map((person) => person.id));
+  return new Set(Object.keys(WORKSPACE_PEOPLE));
 }
 
 export function rosterMentionPattern(): RegExp {
-  const ids = WORKSPACE_PEOPLE.map((person) =>
-    person.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-  ).join("|");
+  const ids = Object.keys(WORKSPACE_PEOPLE)
+    .map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
   return new RegExp(`(^|\\s)@(${ids})\\b\\s*`);
 }
 

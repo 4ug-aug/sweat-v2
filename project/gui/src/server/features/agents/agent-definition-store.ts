@@ -1,4 +1,5 @@
 import type { AgentRuntimeKind } from '#project/agents/definition'
+import { isSeededAgentId } from '#project/agents/roster-people'
 import { SEEDED_AGENT_DEFINITIONS } from '#project/agents/seed-definitions'
 import { parseAccountColor } from '#/lib/account-color'
 import type { Sqlite } from '#/server/sqlite'
@@ -14,6 +15,7 @@ export type AgentDefinitionRecord = {
   visibility: AgentVisibility
   creatorAccountId: string
   creatingAgentId?: string
+  updaterAccountId: string
   githubAccess: boolean
   color?: string
   archivedAt?: number
@@ -66,6 +68,7 @@ type Row = {
   visibility: AgentVisibility
   creator_account_id: string
   creating_agent_id: string | null
+  updater_account_id: string | null
   github_access: number
   color: string | null
   archived_at: number | null
@@ -74,8 +77,8 @@ type Row = {
 }
 
 const COLUMNS = `id, name, description, instructions, runtime_kind, visibility,
-            creator_account_id, creating_agent_id, github_access, color, archived_at,
-            created_at, updated_at`
+            creator_account_id, creating_agent_id, updater_account_id, github_access,
+            color, archived_at, created_at, updated_at`
 
 const mapRow = (row: Row): AgentDefinitionRecord => ({
   id: row.id,
@@ -86,6 +89,7 @@ const mapRow = (row: Row): AgentDefinitionRecord => ({
   visibility: row.visibility,
   creatorAccountId: row.creator_account_id,
   ...(row.creating_agent_id ? { creatingAgentId: row.creating_agent_id } : {}),
+  updaterAccountId: row.updater_account_id ?? row.creator_account_id,
   githubAccess: row.github_access === 1,
   ...(row.color ? { color: row.color } : {}),
   ...(row.archived_at != null ? { archivedAt: row.archived_at } : {}),
@@ -143,9 +147,9 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
       .prepare(
         `INSERT INTO agent_definition (
            id, name, description, instructions, runtime_kind, visibility,
-           creator_account_id, creating_agent_id, github_access, color, archived_at,
-           created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           creator_account_id, creating_agent_id, updater_account_id, github_access,
+           color, archived_at, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
@@ -156,6 +160,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
         record.visibility,
         record.creatorAccountId,
         record.creatingAgentId ?? null,
+        record.updaterAccountId,
         record.githubAccess ? 1 : 0,
         record.color ?? null,
         record.archivedAt ?? null,
@@ -184,7 +189,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
 
   return {
     ensureSeeded(creatorAccountId: string, now = Date.now()): void {
-      for (const seed of SEEDED_AGENT_DEFINITIONS) {
+      for (const seed of Object.values(SEEDED_AGENT_DEFINITIONS)) {
         if (get(seed.id)) continue
         insert({
           id: seed.id,
@@ -194,6 +199,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
           kind: seed.kind,
           visibility: 'workspace',
           creatorAccountId,
+          updaterAccountId: creatorAccountId,
           githubAccess: seed.githubAccess,
           createdAt: now,
           updatedAt: now,
@@ -246,6 +252,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
         ...(input.creatingAgentId
           ? { creatingAgentId: input.creatingAgentId }
           : {}),
+        updaterAccountId: input.creatorAccountId,
         githubAccess: Boolean(input.githubAccess),
         ...(color ? { color } : {}),
         createdAt: now,
@@ -306,7 +313,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
         .prepare(
           `UPDATE agent_definition
            SET name = ?, description = ?, instructions = ?, visibility = ?,
-               github_access = ?, color = ?, updated_at = ?
+               github_access = ?, color = ?, updater_account_id = ?, updated_at = ?
            WHERE id = ?`,
         )
         .run(
@@ -316,6 +323,7 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
           visibility,
           githubAccess ? 1 : 0,
           color ?? null,
+          accountId,
           now,
           id,
         )
@@ -323,12 +331,19 @@ export function createAgentDefinitionStore(sqlite: Sqlite) {
     },
 
     archive(id: string, accountId: string, now: number): AgentDefinitionRecord {
-      requireCreator(id, accountId)
+      const current = requireCreator(id, accountId)
+      if (isSeededAgentId(current.id))
+        throw new AgentDefinitionError(
+          'System agents cannot be archived',
+          'forbidden',
+        )
       sqlite
         .prepare(
-          `UPDATE agent_definition SET archived_at = ?, updated_at = ? WHERE id = ?`,
+          `UPDATE agent_definition
+           SET archived_at = ?, updater_account_id = ?, updated_at = ?
+           WHERE id = ?`,
         )
-        .run(now, now, id)
+        .run(now, accountId, now, id)
       return get(id)!
     },
 

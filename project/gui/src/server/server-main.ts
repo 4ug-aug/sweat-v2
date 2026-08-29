@@ -502,6 +502,8 @@ if (import.meta.main) {
             visibility: record.visibility,
             creatorAccountId: record.creatorAccountId,
             creatingAgentId: record.creatingAgentId,
+            updaterAccountId: record.updaterAccountId,
+            updatedAt: record.updatedAt,
             archivedAt: record.archivedAt,
             instructions: record.instructions,
             color: record.color,

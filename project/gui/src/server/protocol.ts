@@ -87,6 +87,8 @@ export type AgentDefinitionSummary = {
   visibility?: 'private' | 'workspace'
   creatorAccountId?: string
   creatingAgentId?: string
+  updaterAccountId?: string
+  updatedAt?: number
   archivedAt?: number
   instructions?: string
   capabilities: { id: string; name: string; tools: string[] }[]

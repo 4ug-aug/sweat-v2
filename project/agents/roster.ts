@@ -35,6 +35,7 @@ import { SEEDED_AGENT_DEFINITIONS } from "./seed-definitions";
 import {
   SOFTWARE_ENGINEER_ID,
   capabilityToolLabel,
+  isSeededAgentId,
   rosterNotConfiguredMessage,
 } from "./roster-meta";
 import type { SelectGrantedTools } from "./grant-tools";
@@ -100,8 +101,8 @@ export type WorkspacePersonRecord = {
 };
 
 export function seededPerson(id: string): WorkspacePersonRecord | undefined {
-  const seed = SEEDED_AGENT_DEFINITIONS.find((person) => person.id === id);
-  if (!seed) return undefined;
+  if (!isSeededAgentId(id)) return undefined;
+  const seed = SEEDED_AGENT_DEFINITIONS[id];
   return {
     id: seed.id,
     kind: seed.kind,

@@ -1,7 +1,7 @@
 import { migratedDatabase, seedAccounts } from '#/server/test-db'
 import { expect, test } from 'bun:test'
 import { summaryFromPerson } from '#project/agents/roster-meta'
-import { SOFTWARE_ENGINEER_ID } from '#project/agents/roster-people'
+import { SOFTWARE_ENGINEER_ID, WORKSPACE_PEOPLE } from '#project/agents/roster-people'
 import { createAgentDefinitionStore } from './agent-definition-store'
 import { createAgentDefinitionsHttp } from './agent-definitions-http'
 import { createSqliteScheduleStore } from '#/server/features/schedules/schedule-store'
@@ -30,6 +30,8 @@ function harness() {
         visibility: record.visibility,
         creatorAccountId: record.creatorAccountId,
         creatingAgentId: record.creatingAgentId,
+        updaterAccountId: record.updaterAccountId,
+        updatedAt: record.updatedAt,
         archivedAt: record.archivedAt,
         instructions: record.instructions,
         color: record.color,
@@ -79,6 +81,8 @@ test('any Account can create an Agent definition and only its creator can archiv
   expect(created.body.agent.id).toBe('researcher')
   expect(created.body.agent.visibility).toBe('private')
   expect(created.body.agent.creatorAccountId).toBe('ada')
+  expect(created.body.agent.updaterAccountId).toBe('ada')
+  expect(created.body.agent.updatedAt).toBe(10)
   expect(created.body.agent.includeRepository).toBe(false)
   expect(created.body.agent.color).toBeUndefined()
 
@@ -137,6 +141,22 @@ test('GitHub access is administrator-gated and archive pauses active Schedules',
   })
   expect(memberGithub.status).toBe(403)
 
+  const created = await call(
+    'POST',
+    '/api/agent-definitions',
+    {
+      name: 'Coder',
+      description: 'Writes code',
+      instructions: 'Ship it.',
+      kind: 'cursor',
+    },
+    admin,
+  )
+  expect(created.status).toBe(201)
+  sqlite
+    .prepare(`UPDATE schedule SET agent_definition_id = ? WHERE id = 'sched-1'`)
+    .run(created.body.agent.id)
+
   const adminGithub = await call(
     'PATCH',
     `/api/agent-definitions/${SOFTWARE_ENGINEER_ID}`,
@@ -148,13 +168,27 @@ test('GitHub access is administrator-gated and archive pauses active Schedules',
 
   const archived = await call(
     'POST',
-    `/api/agent-definitions/${SOFTWARE_ENGINEER_ID}/archive`,
+    `/api/agent-definitions/${created.body.agent.id}/archive`,
     undefined,
     admin,
   )
   expect(archived.status).toBe(200)
-  expect(paused).toEqual([SOFTWARE_ENGINEER_ID])
+  expect(paused).toEqual([created.body.agent.id])
   expect(schedules.getSchedule('sched-1')?.state).toBe('paused')
+})
+
+test('system Agent definitions cannot be archived', async () => {
+  const { call } = harness()
+  for (const id of Object.keys(WORKSPACE_PEOPLE)) {
+    const archived = await call(
+      'POST',
+      `/api/agent-definitions/${id}/archive`,
+      undefined,
+      admin,
+    )
+    expect(archived.status).toBe(403)
+    expect(archived.body.error).toBe('System agents cannot be archived')
+  }
 })
 
 test('duplicate records the responsible Account as creator', async () => {
@@ -167,6 +201,8 @@ test('duplicate records the responsible Account as creator', async () => {
   )
   expect(copy.status).toBe(201)
   expect(copy.body.agent.creatorAccountId).toBe('bob')
+  expect(copy.body.agent.updaterAccountId).toBe('bob')
+  expect(copy.body.agent.updatedAt).toBe(10)
   expect(copy.body.agent.id).not.toBe(SOFTWARE_ENGINEER_ID)
   expect(copy.body.agent.includeRepository).toBe(true)
 })
@@ -188,6 +224,8 @@ test('GET lists instructions and optional skill summaries for the viewer', async
         visibility: record.visibility,
         creatorAccountId: record.creatorAccountId,
         creatingAgentId: record.creatingAgentId,
+        updaterAccountId: record.updaterAccountId,
+        updatedAt: record.updatedAt,
         archivedAt: record.archivedAt,
         instructions: record.instructions,
         color: record.color,
@@ -202,6 +240,8 @@ test('GET lists instructions and optional skill summaries for the viewer', async
           githubAccess: record.githubAccess,
           visibility: record.visibility,
           creatorAccountId: record.creatorAccountId,
+          updaterAccountId: record.updaterAccountId,
+          updatedAt: record.updatedAt,
           instructions: record.instructions,
           color: record.color,
         }),

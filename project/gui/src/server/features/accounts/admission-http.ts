@@ -32,7 +32,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canManageAgentAccess } from '#/server/features/agents/agent-access'
-import { WORKSPACE_PEOPLE } from '#project/agents/roster-people'
+import { WORKSPACE_PEOPLE, isSeededAgentId } from '#project/agents/roster-people'
 
 export type AccountInput = {
   email: string
@@ -170,10 +170,12 @@ export function createAdmissionHttpHandler(
     options.agentMentionHandles?.() ?? AGENT_MENTION_HANDLES
   const listedAgents = () =>
     options.listAgents?.() ??
-    WORKSPACE_PEOPLE.map((person) => ({ id: person.id, name: person.name }))
+    Object.values(WORKSPACE_PEOPLE).map((person) => ({
+      id: person.id,
+      name: person.name,
+    }))
   const isKnownAgent = (id: string) =>
-    options.knownAgent?.(id) ??
-    WORKSPACE_PEOPLE.some((person) => person.id === id)
+    options.knownAgent?.(id) ?? isSeededAgentId(id)
 
   return async (request: Request, url: URL): Promise<Response | undefined> => {
     if (url.pathname === '/api/admission/status' && request.method === 'GET')

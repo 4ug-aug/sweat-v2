@@ -1,6 +1,6 @@
 import { migratedDatabase, seedAccounts } from '#/server/test-db'
 import { expect, test } from 'bun:test'
-import { ANTBOY_ID, SOFTWARE_ENGINEER_ID } from '#project/agents/roster-people'
+import { ANTBOY_ID, SOFTWARE_ENGINEER_ID, WORKSPACE_PEOPLE } from '#project/agents/roster-people'
 import {
   AgentDefinitionError,
   createAgentDefinitionStore,
@@ -64,16 +64,28 @@ test('listVisible hides Private definitions from other Accounts and omits archiv
     },
     2,
   )
-  store.archive(SOFTWARE_ENGINEER_ID, 'ada', 3)
+  const extra = store.create(
+    {
+      name: 'Temp',
+      description: 'Goes away',
+      instructions: 'Be brief.',
+      kind: 'openai-agents',
+      visibility: 'workspace',
+      creatorAccountId: 'ada',
+    },
+    3,
+  )
+  store.archive(extra.id, 'ada', 4)
 
   const adaSees = store.listVisible('ada').map((agent) => agent.id)
   const bobSees = store.listVisible('bob').map((agent) => agent.id)
   expect(adaSees).toContain(privateAgent.id)
   expect(adaSees).toContain(ANTBOY_ID)
-  expect(adaSees).not.toContain(SOFTWARE_ENGINEER_ID)
+  expect(adaSees).toContain(SOFTWARE_ENGINEER_ID)
+  expect(adaSees).not.toContain(extra.id)
   expect(bobSees).toContain(ANTBOY_ID)
   expect(bobSees).not.toContain(privateAgent.id)
-  expect(bobSees).not.toContain(SOFTWARE_ENGINEER_ID)
+  expect(bobSees).not.toContain(extra.id)
   sqlite.close()
 })
 
@@ -105,6 +117,18 @@ test('duplicate copies configuration with a new slug and the responsible Account
   sqlite.close()
 })
 
+test('seeded Agent definitions cannot be archived', () => {
+  const sqlite = migratedDatabase()
+  seedAccounts(sqlite, [{ id: 'ada', name: 'Ada' }])
+  const store = createAgentDefinitionStore(sqlite)
+  store.ensureSeeded('ada', 1)
+  for (const id of Object.keys(WORKSPACE_PEOPLE)) {
+    expect(() => store.archive(id, 'ada', 2)).toThrow(AgentDefinitionError)
+    expect(store.get(id)?.archivedAt).toBeUndefined()
+  }
+  sqlite.close()
+})
+
 test('only the Agent creator can edit or archive a definition', () => {
   const sqlite = migratedDatabase()
   seedAccounts(sqlite, [
@@ -113,17 +137,62 @@ test('only the Agent creator can edit or archive a definition', () => {
   ])
   const store = createAgentDefinitionStore(sqlite)
   store.ensureSeeded('ada', 1)
+  const custom = store.create(
+    {
+      name: 'Researcher',
+      description: 'Looks things up',
+      instructions: 'Stay concise.',
+      kind: 'openai-agents',
+      visibility: 'workspace',
+      creatorAccountId: 'ada',
+    },
+    2,
+  )
   expect(() =>
-    store.update(ANTBOY_ID, 'bob', { name: 'Hijacked' }, 2),
+    store.update(ANTBOY_ID, 'bob', { name: 'Hijacked' }, 3),
   ).toThrow(AgentDefinitionError)
-  expect(() => store.archive(ANTBOY_ID, 'bob', 3)).toThrow(
+  expect(() => store.archive(custom.id, 'bob', 4)).toThrow(
     AgentDefinitionError,
   )
-  const updated = store.update(ANTBOY_ID, 'ada', { name: 'Antboy Prime' }, 4)
+  const updated = store.update(ANTBOY_ID, 'ada', { name: 'Antboy Prime' }, 5)
   expect(updated.name).toBe('Antboy Prime')
   expect(updated.id).toBe(ANTBOY_ID)
-  const archived = store.archive(ANTBOY_ID, 'ada', 5)
-  expect(archived.archivedAt).toBe(5)
+  expect(updated.updaterAccountId).toBe('ada')
+  expect(updated.updatedAt).toBe(5)
+  const archived = store.archive(custom.id, 'ada', 6)
+  expect(archived.archivedAt).toBe(6)
+  expect(archived.updaterAccountId).toBe('ada')
+  expect(archived.updatedAt).toBe(6)
+  sqlite.close()
+})
+
+test('create and seed stamp the responsible Account as creator and updater', () => {
+  const sqlite = migratedDatabase()
+  seedAccounts(sqlite, [{ id: 'ada', name: 'Ada' }])
+  const store = createAgentDefinitionStore(sqlite)
+  store.ensureSeeded('ada', 1)
+  const antboy = store.get(ANTBOY_ID)
+  expect(antboy).toMatchObject({
+    creatorAccountId: 'ada',
+    updaterAccountId: 'ada',
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  const created = store.create(
+    {
+      name: 'Researcher',
+      description: 'Looks things up',
+      instructions: 'Stay concise.',
+      kind: 'openai-agents',
+      visibility: 'workspace',
+      creatorAccountId: 'ada',
+    },
+    2,
+  )
+  expect(created.creatorAccountId).toBe('ada')
+  expect(created.updaterAccountId).toBe('ada')
+  expect(created.createdAt).toBe(2)
+  expect(created.updatedAt).toBe(2)
   sqlite.close()
 })
 
@@ -132,9 +201,20 @@ test('mentionPattern omits archived slugs while mentionHandles keeps them reserv
   seedAccounts(sqlite, [{ id: 'ada', name: 'Ada' }])
   const store = createAgentDefinitionStore(sqlite)
   store.ensureSeeded('ada', 1)
-  store.archive(SOFTWARE_ENGINEER_ID, 'ada', 2)
-  expect(store.mentionHandles().has(SOFTWARE_ENGINEER_ID)).toBe(true)
-  expect(store.mentionPattern().test(' @software-engineer do this')).toBe(false)
+  const extra = store.create(
+    {
+      name: 'Temp',
+      description: 'Goes away',
+      instructions: 'Be brief.',
+      kind: 'openai-agents',
+      visibility: 'workspace',
+      creatorAccountId: 'ada',
+    },
+    2,
+  )
+  store.archive(extra.id, 'ada', 3)
+  expect(store.mentionHandles().has(extra.id)).toBe(true)
+  expect(store.mentionPattern().test(` @${extra.id} do this`)).toBe(false)
   expect(store.mentionPattern().test(' @antboy do this')).toBe(true)
   sqlite.close()
 })

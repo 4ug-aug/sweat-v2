@@ -1,10 +1,13 @@
 import { ColonyMark } from '#/components/colony-mark'
 import { AgentMark, AgentMarkGlyph } from '#/features/agents/agent-mark'
 import { agentInk, agentMarkClass } from '#/features/agents/agent-color'
+import { formatRelativeTime } from '#/features/agents/format'
 import {
   agentDefinitionsQueryKey,
   useAgentDefinitions,
 } from '#/features/agents/use-agent-definitions'
+import { isSeededAgentId } from '#project/agents/roster-people'
+import { useWorkspaceMembers } from '#/features/issues/use-workspace-members'
 import { SettingsCard } from '#/features/workspace/settings-card'
 import { apiJsonBody } from '#/lib/api-transport'
 import { ACCOUNT_COLORS, parseAccountColor } from '#/lib/account-color'
@@ -70,6 +73,7 @@ const emptyForm = (): AgentForm => ({
 export function AgentsPage({ user }: { user: Author }) {
   const queryClient = useQueryClient()
   const { data: agents = [] } = useAgentDefinitions()
+  const { data: members = [] } = useWorkspaceMembers()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AgentDefinition | undefined>()
   const [form, setForm] = useState<AgentForm>(emptyForm)
@@ -195,6 +199,7 @@ export function AgentsPage({ user }: { user: Author }) {
           <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {agents.map((agent) => {
             const canEdit = agent.creatorAccountId === user.id
+            const canArchive = canEdit && !isSeededAgentId(agent.id)
             return (
               <SettingsCard
                 key={agent.id}
@@ -204,7 +209,7 @@ export function AgentsPage({ user }: { user: Author }) {
                   <AgentMark
                     agentId={agent.id}
                     color={agent.color}
-                    className="size-4"
+                    className="size-6"
                   />
                 }
                 description={
@@ -218,6 +223,14 @@ export function AgentsPage({ user }: { user: Author }) {
                 <p className="text-sm text-muted-foreground">
                   {agent.description}
                 </p>
+                <AgentAttribution
+                  creatorName={accountName(members, agent.creatorAccountId)}
+                  updaterName={accountName(
+                    members,
+                    agent.updaterAccountId ?? agent.creatorAccountId,
+                  )}
+                  updatedAt={agent.updatedAt}
+                />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <AlertDialog>
                     <AlertDialogTrigger
@@ -260,58 +273,58 @@ export function AgentsPage({ user }: { user: Author }) {
                     </AlertDialogContent>
                   </AlertDialog>
                   {canEdit && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEdit(agent)}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openEdit(agent)}
+                    >
+                      <SquarePen data-icon="inline-start" />
+                      Edit
+                    </Button>
+                  )}
+                  {canArchive && (
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={archive.isPending}
+                          />
+                        }
                       >
-                        <SquarePen data-icon="inline-start" />
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={archive.isPending}
-                            />
-                          }
-                        >
-                          <Archive data-icon="inline-start" />
-                          Archive
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Archive {agent.name}?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This hides the agent from the workspace and
-                              pauses its active schedules. The slug stays
-                              reserved.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={archive.isPending}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              variant="destructive"
-                              disabled={archive.isPending}
-                              onClick={() => archive.mutate(agent.id)}
-                            >
-                              {archive.isPending ? (
-                                <BrailleLoader text="Archiving" />
-                              ) : (
-                                'Archive'
-                              )}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
+                        <Archive data-icon="inline-start" />
+                        Archive
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Archive {agent.name}?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This hides the agent from the workspace and
+                            pauses its active schedules. The slug stays
+                            reserved.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={archive.isPending}>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            variant="destructive"
+                            disabled={archive.isPending}
+                            onClick={() => archive.mutate(agent.id)}
+                          >
+                            {archive.isPending ? (
+                              <BrailleLoader text="Archiving" />
+                            ) : (
+                              'Archive'
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </SettingsCard>
@@ -530,5 +543,39 @@ export function AgentsPage({ user }: { user: Author }) {
         </SheetContent>
       </Sheet>
     </div>
+  )
+}
+
+function accountName(
+  members: { id: string; name: string; displayName?: string }[],
+  id?: string,
+) {
+  if (!id) return undefined
+  const member = members.find((account) => account.id === id)
+  return member?.displayName || member?.name || id
+}
+
+function AgentAttribution({
+  creatorName,
+  updaterName,
+  updatedAt,
+}: {
+  creatorName?: string
+  updaterName?: string
+  updatedAt?: number
+}) {
+  if (!creatorName && updatedAt === undefined) return null
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+      {creatorName ? <span>Created by {creatorName}</span> : null}
+      {updatedAt !== undefined ? (
+        <time
+          dateTime={new Date(updatedAt).toISOString()}
+          title={new Date(updatedAt).toLocaleString()}
+        >
+          {`Updated by ${updaterName ?? creatorName} ${formatRelativeTime(updatedAt)}`}
+        </time>
+      ) : null}
+    </p>
   )
 }
