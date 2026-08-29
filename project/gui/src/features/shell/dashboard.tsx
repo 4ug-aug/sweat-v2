@@ -10,7 +10,6 @@ import { useRooms } from '#/features/rooms/use-rooms'
 import { MachineSessionHeader } from '#/features/vms/components/machine-session'
 import { useStoredBoolean } from '#/hooks/use-stored-boolean'
 import { useWindowKeydown } from '#/hooks/use-window-keydown'
-import { ColonyMark } from '#/components/colony-mark'
 import {
   Box,
   CalendarClock,
@@ -249,6 +248,7 @@ export function Dashboard({
         {view !== 'account' &&
           view !== 'workspace' &&
           view !== 'chat' &&
+          view !== 'agents' &&
           view !== 'issues' &&
           view !== 'bulletins' && (
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
@@ -261,8 +261,6 @@ export function Dashboard({
                 <>
                   {view === 'schedules' ? (
                     <CalendarClock className="size-4 text-muted-foreground" />
-                  ) : view === 'agents' ? (
-                    <ColonyMark className="size-4 text-muted-foreground" />
                   ) : view === 'vms' ? (
                     <Box className="size-4 text-muted-foreground" />
                   ) : room?.visibility === 'private' ? (
@@ -273,11 +271,9 @@ export function Dashboard({
                   <p className="font-semibold">
                     {view === 'schedules'
                       ? 'Schedules'
-                      : view === 'agents'
-                        ? 'Agents'
-                        : view === 'vms'
-                          ? 'Machines'
-                          : (room?.name ?? 'Rooms')}
+                      : view === 'vms'
+                        ? 'Machines'
+                        : (room?.name ?? 'Rooms')}
                   </p>
                   {view === 'room' && room?.visibility === 'private' && (
                     <MembersPanel

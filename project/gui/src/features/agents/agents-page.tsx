@@ -1,3 +1,4 @@
+import { ColonyMark } from '#/components/colony-mark'
 import { AgentMark, AgentMarkGlyph } from '#/features/agents/agent-mark'
 import { agentInk, agentMarkClass } from '#/features/agents/agent-color'
 import {
@@ -9,6 +10,18 @@ import { apiJsonBody } from '#/lib/api-transport'
 import { ACCOUNT_COLORS, parseAccountColor } from '#/lib/account-color'
 import { cn } from '#/lib/utils'
 import { GitHubIcon } from '#/components/github-icon'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '#/components/ui/alert-dialog'
+import { BrailleLoader } from '#/components/ui/braille-loader'
 import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import { Input } from '#/components/ui/input'
@@ -164,22 +177,22 @@ export function AgentsPage({ user }: { user: Author }) {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-4 sm:p-6 lg:p-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Agents</p>
-            <p className="text-xs text-muted-foreground">
-              Create or duplicate Agent definitions. Only you can edit or archive
-              ones you created.
-            </p>
-          </div>
-          <Button size="sm" onClick={openCreate}>
-            <Plus data-icon="inline-start" />
-            New agent
-          </Button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        <ColonyMark className="size-4 text-muted-foreground" />
+        <p className="font-semibold">Agents</p>
+        <p className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block">
+          Create or duplicate Agent definitions. Only you can edit or archive
+          ones you created.
+        </p>
+        <Button size="sm" className="ml-auto" onClick={openCreate}>
+          <Plus data-icon="inline-start" />
+          New agent
+        </Button>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <main className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-4 sm:p-6 lg:p-8">
+          <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {agents.map((agent) => {
             const canEdit = agent.creatorAccountId === user.id
             return (
@@ -187,31 +200,65 @@ export function AgentsPage({ user }: { user: Author }) {
                 key={agent.id}
                 className="h-full"
                 title={agent.name}
+                leading={
+                  <AgentMark
+                    agentId={agent.id}
+                    color={agent.color}
+                    className="size-4"
+                  />
+                }
                 description={
-                  <span className="flex items-center gap-2">
-                    <AgentMark
-                      agentId={agent.id}
-                      color={agent.color}
-                      className="size-4"
-                    />
+                  <>
                     @{agent.id}
                     {agent.visibility === 'private' ? ' · Private' : ''}
                     {agent.includeRepository ? ' · GitHub' : ''}
-                  </span>
+                  </>
                 }
               >
                 <p className="text-sm text-muted-foreground">
                   {agent.description}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => duplicate.mutate(agent.id)}
-                  >
-                    <CopyPlus data-icon="inline-start" />
-                    Duplicate
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger
+                      render={
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={duplicate.isPending}
+                        />
+                      }
+                    >
+                      <CopyPlus data-icon="inline-start" />
+                      Duplicate
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Duplicate {agent.name}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Creates a copy named “{agent.name} copy” that you
+                          own. You can edit it afterward.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={duplicate.isPending}>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={duplicate.isPending}
+                          onClick={() => duplicate.mutate(agent.id)}
+                        >
+                          {duplicate.isPending ? (
+                            <BrailleLoader text="Duplicating" />
+                          ) : (
+                            'Duplicate'
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   {canEdit && (
                     <>
                       <Button
@@ -222,22 +269,57 @@ export function AgentsPage({ user }: { user: Author }) {
                         <SquarePen data-icon="inline-start" />
                         Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => archive.mutate(agent.id)}
-                      >
-                        <Archive data-icon="inline-start" />
-                        Archive
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={archive.isPending}
+                            />
+                          }
+                        >
+                          <Archive data-icon="inline-start" />
+                          Archive
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Archive {agent.name}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This hides the agent from the workspace and
+                              pauses its active schedules. The slug stays
+                              reserved.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={archive.isPending}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              variant="destructive"
+                              disabled={archive.isPending}
+                              onClick={() => archive.mutate(agent.id)}
+                            >
+                              {archive.isPending ? (
+                                <BrailleLoader text="Archiving" />
+                              ) : (
+                                'Archive'
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </>
                   )}
                 </div>
               </SettingsCard>
             )
           })}
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"

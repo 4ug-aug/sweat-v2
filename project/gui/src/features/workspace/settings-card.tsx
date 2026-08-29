@@ -10,11 +10,13 @@ import type { ReactNode } from 'react'
 
 export function SettingsCard({
   title,
+  leading,
   description,
   children,
   className,
 }: {
   title: string
+  leading?: ReactNode
   description?: ReactNode
   children: ReactNode
   className?: string
@@ -27,7 +29,10 @@ export function SettingsCard({
       )}
     >
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className={leading ? 'flex items-center gap-2' : undefined}>
+          {leading}
+          {title}
+        </CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
       <CardContent>{children}</CardContent>
