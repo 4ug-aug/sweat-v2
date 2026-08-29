@@ -1,8 +1,19 @@
 import { AgentMark } from '#/features/agents/agent-mark'
+import { useAgentDefinitions } from '#/features/agents/use-agent-definitions'
 import { useMemo, useState } from 'react'
-import { Pause, Play, Plus, RotateCcw, Archive } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { previewCron } from './cron'
-import { useSchedules } from './use-schedules'
+import { ScheduleHistorySheet } from './components/schedule-history-sheet'
+import { ScheduleRow } from './components/schedule-row'
+import {
+  useCancelScheduleRun,
+  useCreateSchedule,
+  useRunScheduleNow,
+  useScheduleRuns,
+  useSchedules,
+  useUpdateSchedule,
+} from './use-schedules'
+import type { Schedule, ScheduleRun } from './types'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -14,6 +25,11 @@ import {
 } from '#/components/ui/dialog'
 import { Input } from '#/components/ui/input'
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from '#/components/ui/pagination'
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -21,38 +37,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '#/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { BrailleLoader } from '#/components/ui/braille-loader'
-import { Badge } from '#/components/ui/badge'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '#/components/ui/card'
 import { toast } from '#/components/ui/toast'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '#/components/ui/collapsible'
 import { RunActivityRail } from '#/features/runs/run-activity-rail'
+import { formatScheduleWhen } from './format'
 
+const PAGE_SIZE = 25
 const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-const formatDate = (value?: number, timezone = defaultTimezone) =>
-  value === undefined
-    ? 'Not scheduled'
-    : new Intl.DateTimeFormat([], {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-        timeZone: timezone,
-      }).format(value)
-
-const runBadgeVariant = (state: string) =>
-  state === 'failed' ? 'destructive' : 'success'
 
 const errorMessage = (reason: unknown) =>
   reason instanceof Error ? reason.message : 'Please try again.'
@@ -63,17 +55,18 @@ export function SchedulesPage({
   onOpenMachine?: (sandboxId: string) => void
 }) {
   const {
-    schedules,
-    agents,
-    runs,
-    loading,
+    data: schedules = [],
+    isPending,
+    isError,
     error,
-    create,
-    update,
-    runNow,
-    cancel,
   } = useSchedules()
+  const { data: agents = [] } = useAgentDefinitions()
+  const create = useCreateSchedule()
+  const update = useUpdateSchedule()
+  const runNow = useRunScheduleNow()
+  const cancel = useCancelScheduleRun()
   const [archived, setArchived] = useState(false)
+  const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
   const [editingId, setEditingId] = useState<string>()
   const [name, setName] = useState('')
@@ -83,7 +76,8 @@ export function SchedulesPage({
   const [agentDefinitionId, setAgentDefinitionId] =
     useState('software-engineer')
   const [formError, setFormError] = useState<string>()
-  const [selectedRunId, setSelectedRunId] = useState<string>()
+  const [historyScheduleId, setHistoryScheduleId] = useState<string>()
+  const [selectedRun, setSelectedRun] = useState<ScheduleRun>()
   const preview = useMemo(() => {
     try {
       return previewCron(cronExpression, timezone)
@@ -94,11 +88,21 @@ export function SchedulesPage({
   const visible = schedules.filter((schedule) =>
     archived ? schedule.state === 'archived' : schedule.state !== 'archived',
   )
-  const selectedRun = Object.values(runs)
-    .flat()
-    .find((run) => run.id === selectedRunId)
-  const selectedSchedule = selectedRun
-    ? schedules.find((schedule) => schedule.id === selectedRun.scheduleId)
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const paged = visible.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  )
+  const historySchedule = schedules.find(
+    (schedule) => schedule.id === historyScheduleId,
+  )
+  const { data: selectedRunHistory } = useScheduleRuns(selectedRun?.scheduleId)
+  const liveSelectedRun =
+    selectedRunHistory?.find((run) => run.id === selectedRun?.id) ??
+    selectedRun
+  const selectedSchedule = liveSelectedRun
+    ? schedules.find((schedule) => schedule.id === liveSelectedRun.scheduleId)
     : undefined
   const startCreate = () => {
     setEditingId(undefined)
@@ -107,6 +111,15 @@ export function SchedulesPage({
     setCronExpression('0 9 * * 5')
     setTimezone(defaultTimezone)
     setAgentDefinitionId(agents[0]?.id ?? 'software-engineer')
+    setCreating(true)
+  }
+  const startEdit = (schedule: Schedule) => {
+    setEditingId(schedule.id)
+    setName(schedule.name)
+    setTask(schedule.task)
+    setCronExpression(schedule.cronExpression)
+    setTimezone(schedule.timezone)
+    setAgentDefinitionId(schedule.agentDefinitionId)
     setCreating(true)
   }
   const runScheduleAction = (
@@ -125,7 +138,7 @@ export function SchedulesPage({
       )
   }
 
-  if (loading)
+  if (isPending)
     return (
       <div className="p-8 text-sm text-muted-foreground">
         <BrailleLoader text="Loading schedules" />
@@ -134,15 +147,26 @@ export function SchedulesPage({
   return (
     <div className="flex min-h-0 flex-1">
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-full flex-col gap-6 p-5 sm:p-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-semibold">Schedules</h1>
-              <p className="text-sm text-muted-foreground">
-                Recurring work shared by the workspace.
-              </p>
-            </div>
-            <Button onClick={startCreate}>
+        <div className="mx-auto flex w-full max-w-full flex-col gap-3 px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Tabs
+              value={archived ? 'archived' : 'active'}
+              onValueChange={(value) => {
+                setArchived(value === 'archived')
+                setPage(1)
+              }}
+            >
+              <TabsList>
+                <TabsTrigger value="active">Active</TabsTrigger>
+                <TabsTrigger value="archived">Archived</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Button
+              type="button"
+              size="sm"
+              className="ml-auto h-7 gap-1.5"
+              onClick={startCreate}
+            >
               <Plus data-icon="inline-start" />
               New schedule
             </Button>
@@ -164,7 +188,8 @@ export function SchedulesPage({
                   setFormError(undefined)
                   try {
                     if (editingId)
-                      await update(editingId, {
+                      await update.mutateAsync({
+                        id: editingId,
                         name,
                         task,
                         cronExpression,
@@ -172,7 +197,7 @@ export function SchedulesPage({
                         agentDefinitionId,
                       })
                     else
-                      await create({
+                      await create.mutateAsync({
                         name,
                         task,
                         cronExpression,
@@ -237,7 +262,9 @@ export function SchedulesPage({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Input
                     value={cronExpression}
-                    onChange={(event) => setCronExpression(event.target.value)}
+                    onChange={(event) =>
+                      setCronExpression(event.target.value)
+                    }
                     aria-label="Cron expression"
                   />
                   <Input
@@ -250,7 +277,7 @@ export function SchedulesPage({
                   <p className="text-sm text-muted-foreground">
                     {preview.description} ·{' '}
                     {preview.nextRuns
-                      .map((date) => formatDate(date, timezone))
+                      .map((date) => formatScheduleWhen(date, timezone))
                       .join(' · ')}
                   </p>
                 ) : (
@@ -276,240 +303,159 @@ export function SchedulesPage({
               </form>
             </DialogContent>
           </Dialog>
-          <Tabs
-            className="flex-col"
-            value={archived ? 'archived' : 'active'}
-            onValueChange={(value) => setArchived(value === 'archived')}
-          >
-            <TabsList>
-              <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="archived">Archived</TabsTrigger>
-            </TabsList>
-            <TabsContent value={archived ? 'archived' : 'active'}>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              {!visible.length && (
-                <p className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
-                  No schedules here yet.
-                </p>
-              )}
-              <div className="grid gap-3">
-                {visible.map((schedule) => {
-                  const history = runs[schedule.id] ?? []
-                  const latest = history.at(-1)
-                  return (
-                    <Card key={schedule.id} className="shadow-sm">
-                      <CardHeader>
-                        <CardTitle className="flex flex-wrap items-center gap-2">
-                          <h2>{schedule.name}</h2>
-                          <Badge variant="secondary">{schedule.state}</Badge>
-                        </CardTitle>
-                        <CardDescription>
-                          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                            <span className="inline-flex items-center gap-1.5">
-                              <AgentMark agentId={schedule.agentDefinitionId} />
-                              {agents.find(
-                                (agent) =>
-                                  agent.id === schedule.agentDefinitionId,
-                              )?.name ?? schedule.agentDefinitionId}
-                            </span>
-                            <span>
-                              {
-                                previewCron(
-                                  schedule.cronExpression,
-                                  schedule.timezone,
-                                ).description
-                              }
-                            </span>
-                            <code className="font-mono text-[0.7rem]">
-                              {schedule.cronExpression}
-                            </code>
-                            <span>· {schedule.timezone}</span>
-                            <span>· {schedule.createdBy.name}</span>
-                          </div>
-                        </CardDescription>
-                        {schedule.state !== 'archived' && (
-                          <CardAction>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() =>
-                                runScheduleAction(
-                                  () => runNow(schedule.id),
-                                  'Run started',
-                                  schedule.name,
-                                )
-                              }
-                            >
-                              <Play data-icon="inline-start" />
-                              Run now
-                            </Button>
-                          </CardAction>
-                        )}
-                      </CardHeader>
-                      <CardContent className="flex flex-col gap-4">
-                        <p className="whitespace-pre-wrap text-sm">
-                          {schedule.task}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Next run:{' '}
-                          {formatDate(schedule.nextRunAt, schedule.timezone)}
-                          {latest ? ` · Latest: ${latest.state}` : ''}
-                        </p>
-                        {!!history.length && (
-                          <Collapsible>
-                            <CollapsibleTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                />
-                              }
-                            >
-                              View history ({history.length})
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden pt-2 transition-[height,opacity] duration-200 ease-out motion-reduce:transition-none data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 [&[hidden]:not([hidden='until-found'])]:hidden">
-                              <div className="overflow-hidden rounded-md border divide-y">
-                                {history.map((run) => (
-                                  <button
-                                    type="button"
-                                    key={run.id}
-                                    onClick={() => setSelectedRunId(run.id)}
-                                    aria-pressed={selectedRunId === run.id}
-                                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none aria-pressed:bg-accent"
-                                  >
-                                    <span className="flex min-w-0 flex-col gap-0.5">
-                                      <span className="font-medium">
-                                        {run.source === 'automatic'
-                                          ? 'Automatic'
-                                          : 'Run now'}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatDate(
-                                          run.createdAt,
-                                          schedule.timezone,
-                                        )}
-                                      </span>
-                                    </span>
-                                    <Badge variant={runBadgeVariant(run.state)}>
-                                      {run.state}
-                                    </Badge>
-                                  </button>
-                                ))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        )}
-                      </CardContent>
-                      <CardFooter className="flex flex-wrap gap-2 border-t">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingId(schedule.id)
-                            setName(schedule.name)
-                            setTask(schedule.task)
-                            setCronExpression(schedule.cronExpression)
-                            setTimezone(schedule.timezone)
-                            setAgentDefinitionId(schedule.agentDefinitionId)
-                            setCreating(true)
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        {schedule.state === 'active' ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              runScheduleAction(
-                                () => update(schedule.id, { state: 'paused' }),
-                                'Schedule paused',
-                                schedule.name,
-                              )
-                            }
-                          >
-                            <Pause data-icon="inline-start" />
-                            Pause
-                          </Button>
-                        ) : schedule.state === 'paused' ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              runScheduleAction(
-                                () => update(schedule.id, { state: 'active' }),
-                                'Schedule resumed',
-                                schedule.name,
-                              )
-                            }
-                          >
-                            <Play data-icon="inline-start" />
-                            Resume
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              runScheduleAction(
-                                () => update(schedule.id, { state: 'paused' }),
-                                'Schedule restored',
-                                schedule.name,
-                              )
-                            }
-                          >
-                            <RotateCcw data-icon="inline-start" />
-                            Restore
-                          </Button>
-                        )}
-                        {schedule.state !== 'archived' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              runScheduleAction(
-                                () =>
-                                  update(schedule.id, { state: 'archived' }),
-                                'Schedule archived',
-                                schedule.name,
-                              )
-                            }
-                          >
-                            <Archive data-icon="inline-start" />
-                            Archive
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  )
-                })}
+          {isError && (
+            <p className="text-sm text-destructive" role="alert">
+              {error instanceof Error
+                ? error.message
+                : 'Unable to load schedules'}
+            </p>
+          )}
+          {!visible.length ? (
+            <p className="rounded-md border border-border/50 p-8 text-center text-sm text-muted-foreground">
+              No schedules here yet.
+            </p>
+          ) : (
+            <>
+              <div className="@container overflow-hidden rounded-md border border-border/50 bg-background">
+                {paged.map((schedule) => (
+                  <ScheduleRow
+                    key={schedule.id}
+                    schedule={schedule}
+                    onRunNow={() =>
+                      runScheduleAction(
+                        () => runNow.mutateAsync(schedule.id),
+                        'Run started',
+                        schedule.name,
+                      )
+                    }
+                    onEdit={() => startEdit(schedule)}
+                    onHistory={() => setHistoryScheduleId(schedule.id)}
+                    onPause={() =>
+                      runScheduleAction(
+                        () =>
+                          update.mutateAsync({
+                            id: schedule.id,
+                            state: 'paused',
+                          }),
+                        'Schedule paused',
+                        schedule.name,
+                      )
+                    }
+                    onResume={() =>
+                      runScheduleAction(
+                        () =>
+                          update.mutateAsync({
+                            id: schedule.id,
+                            state: 'active',
+                          }),
+                        'Schedule resumed',
+                        schedule.name,
+                      )
+                    }
+                    onRestore={() =>
+                      runScheduleAction(
+                        () =>
+                          update.mutateAsync({
+                            id: schedule.id,
+                            state: 'paused',
+                          }),
+                        'Schedule restored',
+                        schedule.name,
+                      )
+                    }
+                    onArchive={() =>
+                      runScheduleAction(
+                        () =>
+                          update.mutateAsync({
+                            id: schedule.id,
+                            state: 'archived',
+                          }),
+                        'Schedule archived',
+                        schedule.name,
+                      )
+                    }
+                  />
+                ))}
               </div>
-            </TabsContent>
-          </Tabs>
+              {pageCount > 1 && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {(safePage - 1) * PAGE_SIZE + 1}–
+                    {Math.min(safePage * PAGE_SIZE, visible.length)} of{' '}
+                    {visible.length}
+                  </p>
+                  <Pagination className="mx-0 w-auto justify-end">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          disabled={safePage <= 1}
+                          onClick={() => setPage(safePage - 1)}
+                        >
+                          <ChevronLeft data-icon="inline-start" />
+                          Previous
+                        </Button>
+                      </PaginationItem>
+                      <PaginationItem>
+                        <span className="px-2 text-xs text-muted-foreground">
+                          {safePage} / {pageCount}
+                        </span>
+                      </PaginationItem>
+                      <PaginationItem>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7"
+                          disabled={safePage >= pageCount}
+                          onClick={() => setPage(safePage + 1)}
+                        >
+                          Next
+                          <ChevronRight data-icon="inline-end" />
+                        </Button>
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </main>
-      {selectedRun && selectedSchedule && (
+      <ScheduleHistorySheet
+        schedule={historySchedule}
+        onOpenChange={(open) => {
+          if (!open) setHistoryScheduleId(undefined)
+        }}
+        onSelectRun={(run) => {
+          setSelectedRun(run)
+          setHistoryScheduleId(undefined)
+        }}
+      />
+      {liveSelectedRun && selectedSchedule && (
         <RunActivityRail
           run={{
-            ...selectedRun,
+            ...liveSelectedRun,
             roomId: '',
-            requestedBy: selectedRun.startedBy ?? {
+            requestedBy: liveSelectedRun.startedBy ?? {
               id: 'workspace',
               name: 'Workspace',
             },
             stdout: '',
             attribution:
-              selectedRun.source === 'automatic'
-                ? `Automatic · scheduled for ${formatDate(selectedRun.scheduledFor, selectedSchedule.timezone)}`
-                : `Run now by @${selectedRun.startedBy?.name ?? 'member'}`,
+              liveSelectedRun.source === 'automatic'
+                ? `Automatic · scheduled for ${formatScheduleWhen(liveSelectedRun.scheduledFor, selectedSchedule.timezone)}`
+                : `Run now by @${liveSelectedRun.startedBy?.name ?? 'member'}`,
           }}
-          stepsPath={`/api/schedule-runs/${selectedRun.id}/steps`}
+          stepsPath={`/api/schedule-runs/${liveSelectedRun.id}/steps`}
           liveSteps={[]}
-          onClose={() => setSelectedRunId(undefined)}
+          onClose={() => setSelectedRun(undefined)}
           onCancel={() =>
             runScheduleAction(
-              () => cancel(selectedRun.id),
+              () => cancel.mutateAsync(liveSelectedRun.id),
               'Run cancelled',
               selectedSchedule.name,
             )

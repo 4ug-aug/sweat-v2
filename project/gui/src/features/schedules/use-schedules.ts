@@ -1,141 +1,185 @@
-import { useCallback, useEffect, useState } from 'react'
-import { apiJson, connectWorkspaceStream } from '#/lib/api-transport'
-import type { AgentDefinition, Schedule, ScheduleRun } from './types'
+import type { QueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { apiJson, apiJsonBody } from '#/lib/api-transport'
+import type { Schedule, ScheduleRun } from './types'
 
-function upsert<T extends { id: string }>(items: T[], item: T): T[] {
-  const index = items.findIndex(({ id }) => id === item.id)
-  return index < 0
-    ? [...items, item]
-    : items.map((value) => (value.id === item.id ? item : value))
+export const schedulesQueryKey = ['schedules'] as const
+
+export function scheduleRunsQueryKey(scheduleId: string) {
+  return ['schedule-runs', scheduleId] as const
 }
 
-export function useSchedules() {
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [agents, setAgents] = useState<AgentDefinition[]>([])
-  const [runs, setRuns] = useState<Record<string, ScheduleRun[]>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string>()
-
-  const load = useCallback(async () => {
-    const [scheduleData, agentData] = await Promise.all([
-      apiJson<{ schedules: Schedule[] }>(
-        '/api/schedules?archived=true',
-        undefined,
-        'Unable to load schedules',
-      ),
-      apiJson<{ agents: AgentDefinition[] }>(
-        '/api/agent-definitions',
-        undefined,
-        'Unable to load schedules',
-      ),
-    ])
-    setSchedules(scheduleData.schedules)
-    setAgents(agentData.agents)
-    await Promise.all(
-      scheduleData.schedules.map(async (schedule) => {
-        try {
-          const data = await apiJson<{ runs: ScheduleRun[] }>(
-            `/api/schedules/${schedule.id}/runs?limit=10`,
-          )
-          setRuns((current) => ({ ...current, [schedule.id]: data.runs }))
-        } catch {
-          // Best-effort per-schedule run history.
-        }
-      }),
+function upsertSchedule(
+  schedules: Schedule[],
+  schedule: Schedule,
+): Schedule[] {
+  const index = schedules.findIndex(({ id }) => id === schedule.id)
+  if (index < 0)
+    return [...schedules, schedule].sort(
+      (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
     )
-  }, [])
+  return schedules.map((current) =>
+    current.id === schedule.id ? schedule : current,
+  )
+}
 
-  useEffect(() => {
-    let stopped = false
-    void load()
-      .catch((reason) => {
-        if (!stopped)
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : 'Unable to load schedules',
-          )
-      })
-      .finally(() => {
-        if (!stopped) setLoading(false)
-      })
-    const stream = connectWorkspaceStream({
-      onMessage(data) {
-        if (stopped) return
-        const event = JSON.parse(data) as {
-          type: string
-          schedule?: Schedule
-          run?: ScheduleRun
-        }
-        if (event.type === 'schedule.created' && event.schedule)
-          setSchedules((current) => upsert(current, event.schedule!))
-        if (event.type === 'schedule.changed' && event.schedule)
-          setSchedules((current) => upsert(current, event.schedule!))
-        if (
-          (event.type === 'schedule_run.created' ||
-            event.type === 'schedule_run.changed') &&
-          event.run
-        )
-          setRuns((current) => ({
-            ...current,
-            [event.run!.scheduleId]: upsert(
-              current[event.run!.scheduleId] ?? [],
-              event.run!,
-            ),
-          }))
-      },
-    })
-    return () => {
-      stopped = true
-      stream.close()
-    }
-  }, [load])
+export function upsertScheduleInCache(
+  queryClient: QueryClient,
+  schedule: Schedule,
+) {
+  queryClient.setQueryData(
+    schedulesQueryKey,
+    (current: Schedule[] | undefined) =>
+      upsertSchedule(current ?? [], schedule),
+  )
+}
 
-  const mutate = useCallback(async (path: string, init: RequestInit) => {
-    const data = await apiJson<{
-      schedule?: Schedule
-      run?: ScheduleRun
-    }>(path, init, 'Schedule request failed')
-    if (data.schedule)
-      setSchedules((current) => upsert(current, data.schedule!))
-    if (data.run)
-      setRuns((current) => ({
-        ...current,
-        [data.run!.scheduleId]: upsert(
-          current[data.run!.scheduleId] ?? [],
-          data.run!,
-        ),
-      }))
-    return data
-  }, [])
+export function upsertScheduleRunInCache(
+  queryClient: QueryClient,
+  run: ScheduleRun,
+) {
+  queryClient.setQueryData(
+    scheduleRunsQueryKey(run.scheduleId),
+    (current: ScheduleRun[] | undefined) => {
+      const runs = current ?? []
+      const index = runs.findIndex(({ id }) => id === run.id)
+      if (index < 0)
+        return [run, ...runs].sort((a, b) => b.createdAt - a.createdAt)
+      return runs
+        .map((existing) => (existing.id === run.id ? run : existing))
+        .sort((a, b) => b.createdAt - a.createdAt)
+    },
+  )
+}
 
-  return {
-    schedules,
-    agents,
-    runs,
-    loading,
-    error,
-    create: (
-      input: Omit<
-        Schedule,
-        'id' | 'state' | 'createdBy' | 'createdAt' | 'updatedAt' | 'nextRunAt'
-      >,
-    ) =>
-      mutate('/api/schedules', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(input),
-      }),
-    update: (id: string, input: Partial<Schedule>) =>
-      mutate(`/api/schedules/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(input),
-      }),
-    runNow: (id: string) =>
-      mutate(`/api/schedules/${id}/runs`, { method: 'POST' }),
-    cancel: (id: string) =>
-      mutate(`/api/schedule-runs/${id}/cancel`, { method: 'POST' }),
-    reload: load,
-  }
+async function fetchSchedules(): Promise<Schedule[]> {
+  const data = await apiJson<{ schedules: Schedule[] }>(
+    '/api/schedules',
+    undefined,
+    'Unable to load schedules',
+  )
+  return data.schedules
+}
+
+async function fetchScheduleRuns(scheduleId: string): Promise<ScheduleRun[]> {
+  const data = await apiJson<{ runs: ScheduleRun[] }>(
+    `/api/schedules/${encodeURIComponent(scheduleId)}/runs?limit=50`,
+    undefined,
+    'Unable to load schedule history',
+  )
+  return (data.runs ?? []).slice().sort((a, b) => b.createdAt - a.createdAt)
+}
+
+export function useSchedules(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: schedulesQueryKey,
+    queryFn: fetchSchedules,
+    enabled: options?.enabled ?? true,
+  })
+}
+
+export function useScheduleRuns(scheduleId: string | undefined) {
+  return useQuery({
+    queryKey: scheduleId
+      ? scheduleRunsQueryKey(scheduleId)
+      : ['schedule-runs', 'none'],
+    queryFn: () => fetchScheduleRuns(scheduleId!),
+    enabled: Boolean(scheduleId),
+  })
+}
+
+export type CreateScheduleInput = Omit<
+  Schedule,
+  'id' | 'state' | 'createdBy' | 'createdAt' | 'updatedAt' | 'nextRunAt'
+>
+
+export type UpdateScheduleInput = {
+  id: string
+  name?: string
+  task?: string
+  cronExpression?: string
+  timezone?: string
+  agentDefinitionId?: string
+  state?: Schedule['state']
+}
+
+export function useCreateSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: CreateScheduleInput): Promise<Schedule> => {
+      const data = await apiJsonBody<{ schedule?: Schedule }>(
+        '/api/schedules',
+        'POST',
+        input,
+        'Unable to create schedule',
+      )
+      if (!data.schedule) throw new Error('Unable to create schedule')
+      return data.schedule
+    },
+    onSuccess: (schedule) => {
+      upsertScheduleInCache(queryClient, schedule)
+    },
+  })
+}
+
+export function useUpdateSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: UpdateScheduleInput): Promise<Schedule> => {
+      const { id, ...patch } = input
+      const data = await apiJsonBody<{ schedule?: Schedule }>(
+        `/api/schedules/${encodeURIComponent(id)}`,
+        'PATCH',
+        patch,
+        'Unable to update schedule',
+      )
+      if (!data.schedule) throw new Error('Unable to update schedule')
+      return data.schedule
+    },
+    onSuccess: (schedule) => {
+      upsertScheduleInCache(queryClient, schedule)
+    },
+  })
+}
+
+export function useRunScheduleNow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string): Promise<ScheduleRun> => {
+      const data = await apiJsonBody<{ run?: ScheduleRun }>(
+        `/api/schedules/${encodeURIComponent(id)}/runs`,
+        'POST',
+        {},
+        'Unable to start schedule',
+      )
+      if (!data.run) throw new Error('Unable to start schedule')
+      return data.run
+    },
+    onSuccess: (run) => {
+      upsertScheduleRunInCache(queryClient, run)
+    },
+  })
+}
+
+export function useCancelScheduleRun() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (runId: string): Promise<ScheduleRun> => {
+      const data = await apiJsonBody<{ run?: ScheduleRun }>(
+        `/api/schedule-runs/${encodeURIComponent(runId)}/cancel`,
+        'POST',
+        {},
+        'Unable to cancel run',
+      )
+      if (!data.run) throw new Error('Unable to cancel run')
+      return data.run
+    },
+    onSuccess: (run) => {
+      upsertScheduleRunInCache(queryClient, run)
+    },
+  })
 }
