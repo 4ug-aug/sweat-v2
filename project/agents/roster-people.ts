@@ -101,8 +101,11 @@ export const capabilityPresentation: Record<
   "workspace.agents": {
     name: "Agents",
     tools: {
+      "workspace.list_agents": "List agents",
+      "workspace.get_agent": "Get agents",
       "workspace.create_agent": "Create agents",
       "workspace.duplicate_agent": "Duplicate agents",
+      "workspace.update_agent": "Update agents",
     },
   },
 };

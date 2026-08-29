@@ -18,7 +18,23 @@ export type WorkspaceAgentRecord = {
   creatingAgentId?: string;
 };
 
+export type WorkspaceAgentDetail = WorkspaceAgentRecord & {
+  instructions: string;
+};
+
+export type WorkspaceAgentUpdate = Partial<{
+  name: string;
+  description: string;
+  instructions: string;
+  visibility: WorkspaceAgentCreate["visibility"];
+}>;
+
 export interface WorkspaceAgentsPort {
+  listAgents(responsibleAccountId: string): WorkspaceAgentRecord[];
+  getAgent(
+    id: string,
+    responsibleAccountId: string,
+  ): WorkspaceAgentDetail | undefined;
   createAgent(
     input: WorkspaceAgentCreate,
     responsibleAccountId: string,
@@ -29,6 +45,11 @@ export interface WorkspaceAgentsPort {
     responsibleAccountId: string,
     creatingAgentId: string,
   ): WorkspaceAgentRecord;
+  updateAgent(
+    id: string,
+    patch: WorkspaceAgentUpdate,
+    responsibleAccountId: string,
+  ): WorkspaceAgentDetail;
 }
 
 const textResult = (value: unknown) => ({
@@ -55,6 +76,22 @@ export function createWorkspaceAgentsMcpUpstream(options: {
     async listTools() {
       return [
         {
+          name: "workspace.list_agents",
+          description:
+            "List Agent definitions visible to this run's Responsible Account (workspace Agents and that Account's private Agents). Returns id, name, description, kind, and visibility — not instructions. Use workspace.get_agent to read instructions.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "workspace.get_agent",
+          description:
+            "Get one Agent definition by id (slug), including instructions. The Agent must be visible to this run's Responsible Account.",
+          inputSchema: {
+            type: "object",
+            properties: { id: { type: "string" } },
+            required: ["id"],
+          },
+        },
+        {
           name: "workspace.create_agent",
           description:
             "Create an Agent definition on behalf of this run's Responsible Account. You are recorded as the Creating agent; that Account remains the Agent creator.",
@@ -80,9 +117,35 @@ export function createWorkspaceAgentsMcpUpstream(options: {
             required: ["id"],
           },
         },
+        {
+          name: "workspace.update_agent",
+          description:
+            "Update an Agent definition created by this run's Responsible Account. Pass the Agent id (slug), not the display name — use workspace.list_agents to find ids. Name changes do not change the id. Patch name, description, instructions, and/or visibility.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              description: { type: "string" },
+              instructions: { type: "string" },
+              visibility: { type: "string", enum: ["private", "workspace"] },
+            },
+            required: ["id"],
+          },
+        },
       ];
     },
     async callTool(name, args) {
+      if (name === "workspace.list_agents") {
+        return textResult(options.port.listAgents(options.responsibleAccountId));
+      }
+      if (name === "workspace.get_agent") {
+        const id = asString(args.id)?.trim();
+        if (!id) throw new Error("id is required");
+        const agent = options.port.getAgent(id, options.responsibleAccountId);
+        if (!agent) throw new Error(`Agent not found: ${id}`);
+        return textResult(agent);
+      }
       if (name === "workspace.create_agent") {
         const nameValue = asString(args.name);
         const description = asString(args.description);
@@ -114,6 +177,31 @@ export function createWorkspaceAgentsMcpUpstream(options: {
             id,
             options.responsibleAccountId,
             options.creatingAgentId,
+          ),
+        );
+      }
+      if (name === "workspace.update_agent") {
+        const id = asString(args.id)?.trim();
+        if (!id) throw new Error("id is required");
+        const visibility = asVisibility(args.visibility);
+        if (args.visibility !== undefined && visibility === undefined)
+          throw new Error("Invalid visibility");
+        return textResult(
+          options.port.updateAgent(
+            id,
+            {
+              ...(asString(args.name) !== undefined
+                ? { name: asString(args.name)! }
+                : {}),
+              ...(asString(args.description) !== undefined
+                ? { description: asString(args.description)! }
+                : {}),
+              ...(asString(args.instructions) !== undefined
+                ? { instructions: asString(args.instructions)! }
+                : {}),
+              ...(visibility ? { visibility } : {}),
+            },
+            options.responsibleAccountId,
           ),
         );
       }

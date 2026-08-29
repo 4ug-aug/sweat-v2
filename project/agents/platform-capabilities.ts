@@ -12,8 +12,11 @@ export const WORKSPACE_ROOM_TOOLS = [
 ] as const;
 
 export const WORKSPACE_AGENT_TOOLS = [
+  "workspace.list_agents",
+  "workspace.get_agent",
   "workspace.create_agent",
   "workspace.duplicate_agent",
+  "workspace.update_agent",
 ] as const;
 
 export const GITHUB_PULL_REQUEST_TOOLS = [

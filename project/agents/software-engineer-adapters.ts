@@ -111,7 +111,7 @@ export function createWorkspaceAgentsAdapter(options: {
         const responsibleAccountId = grantContext?.responsibleAccountId;
         if (!creatingAgentId || !responsibleAccountId) {
           throw new Error(
-            "A Responsible Account and Creating agent are required to create Agent definitions",
+            "A Responsible Account and Creating agent are required to manage Agent definitions",
           );
         }
         return createWorkspaceAgentsMcpUpstream({

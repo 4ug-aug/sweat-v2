@@ -378,6 +378,53 @@ if (import.meta.main) {
                 creatingAgentId: record.creatingAgentId,
               }
             },
+            listAgents(responsibleAccountId) {
+              return agentDefinitionStore
+                .listVisible(responsibleAccountId)
+                .map((record) => ({
+                  id: record.id,
+                  name: record.name,
+                  description: record.description,
+                  kind: record.kind,
+                  visibility: record.visibility,
+                  creatorAccountId: record.creatorAccountId,
+                  creatingAgentId: record.creatingAgentId,
+                }))
+            },
+            getAgent(id, responsibleAccountId) {
+              const record = agentDefinitionStore
+                .listVisible(responsibleAccountId)
+                .find((agent) => agent.id === id)
+              if (!record) return undefined
+              return {
+                id: record.id,
+                name: record.name,
+                description: record.description,
+                instructions: record.instructions,
+                kind: record.kind,
+                visibility: record.visibility,
+                creatorAccountId: record.creatorAccountId,
+                creatingAgentId: record.creatingAgentId,
+              }
+            },
+            updateAgent(id, patch, responsibleAccountId) {
+              const record = agentDefinitionStore.update(
+                id,
+                responsibleAccountId,
+                patch,
+                Date.now(),
+              )
+              return {
+                id: record.id,
+                name: record.name,
+                description: record.description,
+                instructions: record.instructions,
+                kind: record.kind,
+                visibility: record.visibility,
+                creatorAccountId: record.creatorAccountId,
+                creatingAgentId: record.creatingAgentId,
+              }
+            },
           },
         }),
         ...(linearAccessToken
