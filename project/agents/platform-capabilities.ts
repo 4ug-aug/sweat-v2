@@ -27,6 +27,8 @@ export const GITHUB_PULL_REQUEST_TOOLS = [
   "github.get_pull_request",
 ] as const;
 
+export const WEB_SEARCH_TOOLS = ["web.search", "web.fetch"] as const;
+
 export type RequestedCapability = {
   id: string;
   tools: readonly string[];
@@ -39,6 +41,7 @@ export function requestedCapabilitiesFor(
     { id: "workspace.issues", tools: WORKSPACE_ISSUE_TOOLS },
     { id: "workspace.room", tools: WORKSPACE_ROOM_TOOLS },
     { id: "workspace.agents", tools: WORKSPACE_AGENT_TOOLS },
+    { id: "web", tools: WEB_SEARCH_TOOLS },
     ...(githubAccess
       ? [{ id: "github.pull-requests", tools: GITHUB_PULL_REQUEST_TOOLS }]
       : []),

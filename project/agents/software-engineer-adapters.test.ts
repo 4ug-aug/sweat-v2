@@ -5,9 +5,14 @@ import { join } from "node:path";
 import { Octokit } from "octokit";
 import {
   createGitHubSoftwareEngineerAdapter,
+  createWebSearchAdapter,
   createWorkspaceIssuesAdapter,
   createWorkspaceSoftwareEngineerAdapter,
 } from "./software-engineer-adapters";
+
+test("web adapter is granted as capability id web", () => {
+  expect(createWebSearchAdapter().capability?.id).toBe("web");
+});
 
 test("workspace.room binds workspace.post_message to the invocation root from grantContext.rootId", async () => {
   const calls: unknown[] = [];

@@ -13,3 +13,10 @@ test("workspace.agents grants list, get, create, duplicate, and update", () => {
     ],
   });
 });
+
+test("web grants search and fetch", () => {
+  expect(requestedCapabilitiesFor(false)).toContainEqual({
+    id: "web",
+    tools: ["web.search", "web.fetch"],
+  });
+});

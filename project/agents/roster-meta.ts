@@ -137,35 +137,17 @@ export function rosterDefinitionSummaries(
     readonly { id: string; name: string; tools: string[] }[]
   > = new Map(),
 ): RosterDefinitionSummary[] {
-  return WORKSPACE_ROSTER.map((person) => {
-    const roleCapabilities = person.role.requestedCapabilities.map(
-      (capability) => {
-        const presentation = capabilityPresentation[capability.id];
-        return {
-          id: capability.id,
-          name: presentation?.name ?? capability.id,
-          tools: capability.tools.map(
-            (tool) => presentation?.tools[tool] ?? tool,
-          ),
-        };
+  return WORKSPACE_ROSTER.map((person) =>
+    summaryFromPerson(
+      {
+        id: person.id,
+        name: person.name,
+        description: person.description,
+        kind: person.kind,
+        githubAccess: person.includeRepository,
       },
-    );
-    const linked = connectionCapabilitiesByAgent.get(person.id) ?? [];
-    const seen = new Set(roleCapabilities.map((capability) => capability.id));
-    const capabilities = [...roleCapabilities];
-    for (const capability of linked) {
-      if (seen.has(capability.id)) continue;
-      seen.add(capability.id);
-      capabilities.push(capability);
-    }
-    return {
-      id: person.id,
-      name: person.name,
-      description: person.description,
-      kind: person.kind,
-      includeRepository: person.includeRepository,
-      capabilities,
-      skills: [...(skillsByAgent.get(person.id) ?? [])],
-    };
-  });
+      skillsByAgent.get(person.id) ?? [],
+      connectionCapabilitiesByAgent.get(person.id) ?? [],
+    ),
+  );
 }

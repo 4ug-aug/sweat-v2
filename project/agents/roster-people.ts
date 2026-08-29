@@ -108,6 +108,13 @@ export const capabilityPresentation: Record<
       "workspace.update_agent": "Update agents",
     },
   },
+  web: {
+    name: "Web",
+    tools: {
+      "web.search": "Search the web",
+      "web.fetch": "Fetch pages",
+    },
+  },
 };
 
 export function capabilityToolLabel(tool: string): string | undefined {

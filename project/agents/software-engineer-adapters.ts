@@ -29,6 +29,7 @@ import {
   createWorkspaceAgentsMcpUpstream,
   type WorkspaceAgentsPort,
 } from "../mcp/workspace-agents";
+import { createWebSearchMcpUpstream } from "../mcp/web-search";
 import { commandFailure } from "../sandboxes";
 import { STEP_TEXT_LIMIT } from "../runtime/step";
 import { rosterParticipant } from "./roster-meta";
@@ -120,6 +121,15 @@ export function createWorkspaceAgentsAdapter(options: {
           creatingAgentId,
         });
       },
+    },
+  };
+}
+
+export function createWebSearchAdapter(): WorkspaceAgentAdapter {
+  return {
+    capability: {
+      id: "web",
+      createUpstream: () => createWebSearchMcpUpstream(),
     },
   };
 }

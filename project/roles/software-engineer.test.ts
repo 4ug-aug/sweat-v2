@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { softwareEngineerRole } from "./software-engineer";
+import { WEB_TOOL_INSTRUCTIONS } from "./web";
 
 test("the software engineer requests scoped issue and pull request tools", () => {
   expect(softwareEngineerRole.id).toBe("software-engineer");
@@ -46,4 +47,5 @@ test("the software engineer requests scoped issue and pull request tools", () =>
     "Do not use workspace.post_message to deliver your final result",
   );
   expect(softwareEngineerRole.instructions).not.toContain("Room");
+  expect(softwareEngineerRole.instructions).toContain(WEB_TOOL_INSTRUCTIONS);
 });

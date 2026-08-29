@@ -1,5 +1,5 @@
 import { cn } from '#/lib/utils'
-import { SquareTerminal, Wrench, type LucideIcon } from 'lucide-react'
+import { Globe, SquareTerminal, Wrench, type LucideIcon } from 'lucide-react'
 import {
   siAsana,
   siGithub,
@@ -20,6 +20,7 @@ const BRAND_PATHS: Record<string, string> = {
 
 const LUCIDE_ICONS: Record<string, LucideIcon> = {
   shell: SquareTerminal,
+  web: Globe,
 }
 
 function normalizeTool(tool?: string): string {
@@ -40,8 +41,8 @@ export function toolIconId(tool?: string): string {
   if (prefixed(name, 'workspace')) return 'workspace'
   const brand = Object.keys(BRAND_PATHS).find((id) => prefixed(name, id))
   if (brand) return brand
-  const lucide = name.includes('.') ? name : name.replace('_', '.')
-  if (LUCIDE_ICONS[lucide]) return lucide
+  const lucide = Object.keys(LUCIDE_ICONS).find((id) => prefixed(name, id))
+  if (lucide) return lucide
   return 'wrench'
 }
 

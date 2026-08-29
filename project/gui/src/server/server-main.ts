@@ -61,6 +61,7 @@ if (import.meta.main) {
       createLinearSoftwareEngineerAdapter,
       createWorkspaceIssuesAdapter,
       createWorkspaceAgentsAdapter,
+      createWebSearchAdapter,
       createWorkspaceSoftwareEngineerAdapter,
     },
     { createGitHubTokenClient },
@@ -427,6 +428,7 @@ if (import.meta.main) {
             },
           },
         }),
+        createWebSearchAdapter(),
         ...(linearAccessToken
           ? [
               createLinearSoftwareEngineerAdapter({
