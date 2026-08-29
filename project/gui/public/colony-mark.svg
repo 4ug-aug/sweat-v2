@@ -7,48 +7,42 @@
     .ant-body {
       transform-box: fill-box;
       transform-origin: 55% 48%;
-      animation: settle 2.8s ease-in-out infinite;
+      animation: settle var(--colony-mark-settle, 6.4s) ease-in-out infinite;
+      animation-delay: var(--colony-mark-delay, 0s);
     }
     .mandible-left,
     .mandible-right {
       transform-box: fill-box;
-      animation-duration: 2.8s;
+      animation-duration: var(--colony-mark-nibble, 6.8s);
       animation-iteration-count: infinite;
       animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     }
     .mandible-left {
       transform-origin: 82% 88%;
       animation-name: mandible-left;
+      animation-delay: var(--colony-mark-delay, 0s);
     }
     .mandible-right {
       transform-origin: 76% 94%;
       animation-name: mandible-right;
+      animation-delay: var(--colony-mark-delay, 0s);
     }
     @keyframes mandible-left {
-      0%, 6%, 28%, 52%, 72%, 100% { transform: rotate(0); }
-      10% { transform: rotate(-18deg); }
-      14% { transform: rotate(8deg); }
-      18% { transform: rotate(-14deg); }
-      24% { transform: rotate(0); }
-      56% { transform: rotate(-12deg); }
-      60% { transform: rotate(6deg); }
-      66% { transform: rotate(0); }
+      0%, 4%, 16%, 100% { transform: rotate(0); }
+      7% { transform: rotate(-18deg); }
+      10% { transform: rotate(8deg); }
+      13% { transform: rotate(-14deg); }
     }
     @keyframes mandible-right {
-      0%, 7%, 29%, 51%, 73%, 100% { transform: rotate(0); }
-      11% { transform: rotate(16deg); }
-      15% { transform: rotate(-6deg); }
-      19% { transform: rotate(12deg); }
-      25% { transform: rotate(0); }
-      57% { transform: rotate(10deg); }
-      61% { transform: rotate(-4deg); }
-      67% { transform: rotate(0); }
+      0%, 5%, 17%, 100% { transform: rotate(0); }
+      8% { transform: rotate(16deg); }
+      11% { transform: rotate(-6deg); }
+      14% { transform: rotate(12deg); }
     }
     @keyframes settle {
-      0%, 100% { transform: translate(0, 0) rotate(0); }
-      22% { transform: translate(3%, 8%) rotate(-4deg); }
-      50% { transform: translate(-2%, 3%) rotate(3deg); }
-      78% { transform: translate(1%, 7%) rotate(-2deg); }
+      0%, 18%, 100% { transform: translate(0, 0) rotate(0); }
+      8% { transform: translate(2%, 5%) rotate(-3deg); }
+      13% { transform: translate(-1%, 2%) rotate(2deg); }
     }
     @media (prefers-reduced-motion: reduce) {
       .ant-part,

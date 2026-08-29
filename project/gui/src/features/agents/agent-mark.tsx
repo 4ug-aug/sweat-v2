@@ -19,6 +19,7 @@ export function AgentMark({
   const ink = agentInk(resolved)
   return (
     <ColonyMark
+      seed={agentId}
       className={cn('size-6', agentMarkClass(agentId, resolved), className)}
       style={ink ? { color: ink } : undefined}
     />

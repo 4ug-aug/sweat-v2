@@ -337,6 +337,11 @@ Default duration **150–200ms**, easing **ease-out**. Overlays 100ms. Toasts
 Chevrons rotate (`-rotate-90` closed on list groups; `rotate-90` open on
 sidebar). Live timing uses `animate-pulse` on the icon, not the row.
 
+Colony marks stagger: each instance gets a hashed negative `animation-delay`
+and a slightly different body vs mandible duration so a row of ants does not
+loop in lockstep. Honor `prefers-reduced-motion` (the SVG already disables
+those animations).
+
 Always include `motion-reduce:animate-none` / `motion-reduce:transition-none`.
 
 ## Loading, empty, error
