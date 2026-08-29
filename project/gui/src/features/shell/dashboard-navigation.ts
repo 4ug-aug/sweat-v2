@@ -6,8 +6,6 @@ export type DashboardView =
   | 'schedules'
   | 'issues'
   | 'bulletins'
-  | 'docs'
-  | 'grills'
   | 'vms'
 
 /**
@@ -41,8 +39,6 @@ const views: DashboardView[] = [
   'schedules',
   'issues',
   'bulletins',
-  'docs',
-  'grills',
   'vms',
 ]
 

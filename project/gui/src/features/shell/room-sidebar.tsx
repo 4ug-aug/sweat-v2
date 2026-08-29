@@ -41,8 +41,6 @@ import {
   CalendarClock,
   ChevronRight,
   Cuboid,
-  FileText,
-  Flame,
   LogOut,
   MessageSquare,
   StickyNote,
@@ -85,8 +83,6 @@ export function RoomSidebar({
   onOpenSchedules,
   onOpenIssues,
   onOpenBulletins,
-  onOpenDocs,
-  onOpenGrills,
   onOpenChat,
   onOpenVms,
   user,
@@ -105,8 +101,6 @@ export function RoomSidebar({
   onOpenSchedules: () => void
   onOpenIssues: () => void
   onOpenBulletins: () => void
-  onOpenDocs: () => void
-  onOpenGrills: () => void
   onOpenChat: () => void
   onOpenVms: () => void
   user: Author
@@ -176,26 +170,6 @@ export function RoomSidebar({
                 >
                   <StickyNote />
                   <span>Bulletin board</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={view === 'docs'}
-                  onClick={onOpenDocs}
-                  tooltip="Docs"
-                >
-                  <FileText />
-                  <span>Docs</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={view === 'grills'}
-                  onClick={onOpenGrills}
-                  tooltip="Grills"
-                >
-                  <Flame />
-                  <span>Grills</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

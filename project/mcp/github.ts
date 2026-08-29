@@ -385,60 +385,6 @@ export function createGitHubTokenClient(token: string): Octokit {
   return new Octokit({ auth });
 }
 
-export async function publishGitHubBranchFiles(options: {
-  octokit: Octokit;
-  repository: string;
-  base: string;
-  branch: string;
-  files: readonly { path: string; content: string }[];
-  message?: string;
-}): Promise<{ branch: string; sha: string }> {
-  if (!options.files.length) throw new Error("At least one file is required");
-  const repository = repositoryParts(options.repository);
-  const head = await options.octokit.rest.git.getRef({
-    ...repository,
-    ref: `heads/${options.base}`,
-  });
-  const baseCommit = await options.octokit.rest.git.getCommit({
-    ...repository,
-    commit_sha: head.data.object.sha,
-  });
-  const treeItems = await Promise.all(
-    options.files.map(async (file) => {
-      const path = file.path.trim();
-      if (!path) throw new Error("Invalid materialize file path");
-      const blob = await options.octokit.rest.git.createBlob({
-        ...repository,
-        content: Buffer.from(file.content).toString("base64"),
-        encoding: "base64",
-      });
-      return {
-        path,
-        mode: "100644" as const,
-        type: "blob" as const,
-        sha: blob.data.sha,
-      };
-    }),
-  );
-  const tree = await options.octokit.rest.git.createTree({
-    ...repository,
-    base_tree: baseCommit.data.tree.sha,
-    tree: treeItems,
-  });
-  const commit = await options.octokit.rest.git.createCommit({
-    ...repository,
-    message: options.message ?? "Materialize Code Grill",
-    tree: tree.data.sha,
-    parents: [head.data.object.sha],
-  });
-  await options.octokit.rest.git.createRef({
-    ...repository,
-    ref: `refs/heads/${options.branch}`,
-    sha: commit.data.sha,
-  });
-  return { branch: options.branch, sha: commit.data.sha };
-}
-
 export function createGitHubMcpUpstream(options: {
   octokit: Octokit;
   repository: string;

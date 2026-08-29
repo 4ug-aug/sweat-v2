@@ -5,7 +5,7 @@ import { Component } from 'react'
 
 export type ErrorBoundaryProps = {
   children: ReactNode
-  /** Remount/reset when this changes (e.g. grill id). */
+  /** Remount/reset when this changes. */
   resetKeys?: ReadonlyArray<string | number | boolean | null | undefined>
   title?: string
   description?: string

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { SubmitEvent } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Box, CircleCheckBig, Clock, Waypoints } from 'lucide-react'
+import { Box, CircleCheckBig, Clock, Zap, Waypoints } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { AccountFace, AgentAnt } from '#/components/avatar'
 import { StaticDither } from '#/components/static-dither'
@@ -222,6 +222,11 @@ export function AccountSettingsPage({
       icon: AgentAnt,
     },
     {
+      label: 'Oneshots',
+      value: analytics?.oneshots ?? 0,
+      icon: Zap,
+    },
+    {
       label: 'Runtime coordinated',
       value: analytics?.runtimeMs ?? 0,
       icon: Clock,
@@ -260,7 +265,7 @@ export function AccountSettingsPage({
           </TabsList>
 
           <TabsContent value="overview" className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {metrics.map(
                 ({ label, value, icon: Icon, format, description }, index) => (
                   <Card

@@ -5,8 +5,6 @@ import { join } from "node:path";
 import { Octokit } from "octokit";
 import {
   createGitHubSoftwareEngineerAdapter,
-  createWorkspaceDocsAdapter,
-  createWorkspaceGrillAdapter,
   createWorkspaceIssuesAdapter,
   createWorkspaceSoftwareEngineerAdapter,
 } from "./software-engineer-adapters";
@@ -97,35 +95,6 @@ test("workspace.room reads the thread transcript when grantContext.threadReadRoo
     content: { text: string }[];
   };
   expect(result.content[0].text).toContain("root of room-1/root-1");
-});
-
-test("workspace.grill applies only when grantContext.grillId is set", () => {
-  const adapter = createWorkspaceGrillAdapter({
-    port: {
-      setFrontier: () => undefined,
-      setIssueProposal: () => undefined,
-      setWriteup: () => undefined,
-    },
-  });
-  expect(adapter.capability?.applies?.({})).toBe(false);
-  expect(adapter.capability?.applies?.({ grantContext: {} })).toBe(false);
-  expect(
-    adapter.capability?.applies?.({ grantContext: { grillId: "grill-1" } }),
-  ).toBe(true);
-});
-
-test("workspace.docs applies only when grantContext.grillId is set", () => {
-  const adapter = createWorkspaceDocsAdapter({
-    port: { listDocs: () => [], getDoc: () => undefined },
-  });
-  expect(adapter.capability?.applies?.({})).toBe(false);
-  expect(adapter.capability?.applies?.({ grantContext: {} })).toBe(false);
-  expect(
-    adapter.capability?.applies?.({ grantContext: { roomId: "room-1" } }),
-  ).toBe(false);
-  expect(
-    adapter.capability?.applies?.({ grantContext: { grillId: "grill-1" } }),
-  ).toBe(true);
 });
 
 async function preparedGitWorkspace(prefix: string): Promise<{

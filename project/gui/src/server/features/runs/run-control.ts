@@ -78,13 +78,6 @@ export type RunStartContext<Output> =
       onCreate: (run: RunSummary) => NonNullable<Output>
     }
   | {
-      grillId: string
-      agentDefinitionId?: string
-      warm?: boolean
-      idleTtlMs?: number
-      onCreate: (run: RunSummary) => NonNullable<Output>
-    }
-  | {
       oneshotId: string
       agentDefinitionId?: string
       repositoryBase?: string
@@ -190,8 +183,6 @@ function grantContextFrom<Output>(
     }
   if ('scheduleId' in context)
     return { scheduleId: context.scheduleId, agentDefinitionId }
-  if ('grillId' in context)
-    return { grillId: context.grillId, agentDefinitionId }
   if ('oneshotId' in context)
     return {
       oneshotId: context.oneshotId,
@@ -238,7 +229,7 @@ export function createRunControl(executor: RunControlExecutor): RunControl {
         ...('roomId' in context && context.attachments
           ? { attachments: context.attachments }
           : {}),
-        ...('grillId' in context || 'chatId' in context
+        ...('chatId' in context
           ? {
               warm: context.warm ?? true,
               ...('idleTtlMs' in context && context.idleTtlMs !== undefined

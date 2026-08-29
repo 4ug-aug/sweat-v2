@@ -3,7 +3,6 @@ import type {
   RoomMessageMarker,
   RoomRun,
   RoomSummary,
-  RoomUser,
   StoredStep,
 } from './features/rooms/room-store'
 import type {
@@ -17,9 +16,6 @@ import type {
   IssueRunStep,
 } from './features/issues/issue-store'
 import type { Bulletin } from './features/bulletins/bulletin-store'
-import type { Doc } from './features/docs/doc-store'
-import type { Grill } from './features/grills/grill-store'
-import type { GrillLatestStep } from './features/grills/grill-linked-runs'
 
 export type RoomServerMessage =
   | {
@@ -57,12 +53,6 @@ export type WorkspaceServerMessage =
       rootId?: string
     }
   | {
-      type: 'grill_attention.changed'
-      grillId: string
-      attentionCount: number
-      kind?: 'grill_invite'
-    }
-  | {
       type: 'message.created'
       roomId: string
       messageId: string
@@ -84,90 +74,9 @@ export type WorkspaceServerMessage =
   | { type: 'bulletin.changed'; bulletin: Bulletin }
   | { type: 'bulletin.moved'; bulletin: Bulletin }
   | { type: 'bulletin.deleted'; bulletinId: string }
-  | { type: 'doc.created'; doc: Doc }
-  | { type: 'doc.changed'; doc: Doc }
-  | { type: 'doc.deleted'; docId: string }
-export type GrillLeaseMessage = {
-  questionId: string
-  presenceId: string
-  editor: Pick<RoomUser, 'id' | 'name' | 'image' | 'displayName' | 'color'>
-}
-export type GrillParticipantMessage = Pick<
-  RoomUser,
-  'id' | 'name' | 'image' | 'displayName' | 'color'
->
-export type GrillServerMessage =
-  | {
-      type: 'grill.snapshot'
-      grill: Grill
-      presenceId: string
-      leases: GrillLeaseMessage[]
-      participants: GrillParticipantMessage[]
-      latestStep?: GrillLatestStep
-      narration: GrillLatestStep[]
-    }
-  | {
-      type: 'grill.activity.changed'
-      linkedRun?: {
-        id: string
-        task: string
-        state: string
-        error?: string
-        createdAt: number
-        agentId?: string
-        provider?: string
-        model?: string
-        turnActive?: boolean
-      }
-      latestStep?: GrillLatestStep
-      narration: GrillLatestStep[]
-    }
-  | { type: 'grill.changed'; grill: Grill }
-  | { type: 'grill.presence.changed'; participants: GrillParticipantMessage[] }
-  | {
-      type: 'grill.lease.changed'
-      questionId: string
-      lease?: GrillLeaseMessage
-    }
-  | {
-      type: 'grill.draft.changed'
-      questionId: string
-      value: string
-      presenceId: string
-      updatedAt: number
-    }
-  | {
-      type: 'grill.edit.rejected'
-      questionId: string
-      reason: 'lease-held' | 'lease-required' | 'question-not-found'
-    }
-  | {
-      type: 'grill.run.activity'
-      linkedRun: {
-        id: string
-        task: string
-        state: string
-        error?: string
-        turnActive?: boolean
-        exitCode?: number
-        agentId: string
-        provider: string
-        model: string
-        createdAt: number
-        startedAt?: number
-        completedAt?: number
-      }
-      latestStep?: {
-        kind: string
-        tool?: string
-        text: string
-        at: number
-      }
-    }
 export type ServerMessage =
   | RoomServerMessage
   | WorkspaceServerMessage
-  | GrillServerMessage
 
 export type AgentDefinitionSummary = {
   id: string

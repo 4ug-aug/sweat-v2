@@ -13,10 +13,10 @@ export function outlineMcpUrl(instanceOrMcpUrl: string): string {
 }
 
 const listDocumentsDescription =
-  'Search the Outline wiki: pass query for full-text search, or omit it to list recent documents. Then read a hit with outline.fetch { resource: "document", id }. This is not workspace.list_docs.';
+  'Search the Outline wiki: pass query for full-text search, or omit it to list recent documents. Then read a hit with outline.fetch { resource: "document", id }.';
 
 const fetchDescription =
-  'Read an Outline wiki document, collection, user, attachment, or template. To read a wiki page, call with resource "document" and the id from outline.list_documents. This is not workspace.get_doc.';
+  'Read an Outline wiki document, collection, user, attachment, or template. To read a wiki page, call with resource "document" and the id from outline.list_documents.';
 
 /** Replace Outline's generic list/fetch blurbs so agents search, then fetch by resource+id. */
 export function clarifyOutlineUpstream(upstream: McpUpstream): McpUpstream {

@@ -187,13 +187,37 @@ test('account run analytics aggregate only the requested account', () => {
     startedAt: now - 20_000,
     completedAt: now,
   })
+  store.createOneshotUsage({
+    id: 'oneshot-1',
+    accountId: 'user-1',
+    state: 'running',
+    createdAt: now,
+    startedAt: now - 4_000,
+  })
+  store.updateOneshotUsage({
+    id: 'oneshot-1',
+    accountId: 'user-1',
+    state: 'succeeded',
+    createdAt: now,
+    startedAt: now - 4_000,
+    completedAt: now,
+  })
+  store.createOneshotUsage({
+    id: 'oneshot-other',
+    accountId: 'user-2',
+    state: 'succeeded',
+    createdAt: now,
+    startedAt: now - 10_000,
+    completedAt: now,
+  })
 
   const analytics = store.getAccountRunAnalytics('user-1', now)
   expect(analytics).toMatchObject({
     delegations: 4,
+    oneshots: 1,
     agentCreatedIssues: 2,
     agentCompletedIssues: 1,
-    runtimeMs: 12_000,
+    runtimeMs: 16_000,
   })
   expect(analytics.rhythm).toHaveLength(7)
   expect(analytics.rhythm.map(({ delegations }) => delegations)).toEqual([

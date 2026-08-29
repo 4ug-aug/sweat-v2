@@ -33,10 +33,10 @@ directs another account's attention to that room. Agent identifiers share the
 same visible `@` syntax but are not account mentions.
 _Avoid_: Notification, assignment
 
-**Attention**: A durable, account-directed reason to return to a place in the
-workspace — a Room, Room thread, or Grill — because of a relevant mention,
-thread reply, terminal run, or Grill invite; acknowledging it clears its badge
-without changing or deleting the shared record.
+**Attention**: A durable, account-directed reason to return to a Room or Room
+thread because of a relevant mention, thread reply, or terminal run;
+acknowledging it clears its badge without changing or deleting the shared
+record.
 _Avoid_: Unread message, notification
 
 **Schedule**: A workspace-owned recurring delegation that starts bounded runs
@@ -52,7 +52,7 @@ shared history rather than a room timeline.
 _Avoid_: Scheduled run, schedule occurrence, background task
 
 **Oneshot run**: A bounded run started by an Account from anywhere in the
-workspace without a Room, Issue, Schedule, or Grill link. It is private to the
+workspace without a Room, Issue, or Schedule link. It is private to the
 dispatcher. Its Task, steps, and final output appear only in that Account's
 Oneshot panel for the life of that dispatch; closing the panel cancels an
 active run and discards the result. The agent is instructed that it has a
@@ -61,8 +61,7 @@ definition with Oneshot grant context (no room tools). Repository preparation
 follows the definition as usual; an optional revision may be chosen before
 start when the definition includes a repository. It is not a Room, not a Chat,
 and not a Schedule run.
-_Avoid_: Chat, personal run, direct run, ephemeral Grill, one-shot (ADR 0020
-non-warm Grill submit)
+_Avoid_: Chat, personal run, direct run, one-shot
 
 **Workspace membership**: A Sweat server's authorization for an account to
 participate in its workspace. Authentication proves control of the account;
@@ -95,69 +94,8 @@ sessions while retaining its profile and authored history.
 _Avoid_: Account deletion, member removal
 
 **Workspace**: The customer-owned collaborative environment containing people,
-agent definitions, rooms, Chats, Bulletins, Grills, Docs, and their shared work
-history.
+agent definitions, rooms, Chats, Bulletins, and their shared work history.
 _Avoid_: Community
-
-**Grill**: An ephemeral workspace session where one agent conducts a structured
-design interview and Accounts settle decisions together. The starter assigns
-the grilling agent definition (it must have a Grill Skill attached), chooses
-Code or General, and chooses visibility: invite-only or workspace-open.
-The agent may narrate in the Grill timeline, but each round's authoritative
-surface is a structured frontier (questions + shared answer drafts) that
-advances only on explicit round submit. On wrap-up the agent proposes an Issue
-tree; Accounts confirm or send it back for revision. Abandoned or failed Grills
-hard-discard session working state — no partial Docs, no published branch, no
-Issues. Many Grills may be active in a workspace at once. Execution is a
-Grill-linked run that keeps the same provider agent instance for follow-up
-submits while warm (true multi-turn conversation); idle TTL recycles seamlessly
-with Grill-state rehydration. Its lasting value is the durable artifacts it
-produces (Docs and/or Issues), not the session itself. It is not a Room.
-_Avoid_: Room, grilling room, design session, interview, PRD session
-
-**Grill frontier**: The current round of authoritative questions and shared
-answer drafts in a Grill. Timeline narration is not the source of truth for
-what must be answered or submitted.
-_Avoid_: Chat thread (as the decision record), prompt, Task
-
-**Grill presence**: One Account's live participation in a Grill through a
-single app or browser window, distinct from that Account's other open windows.
-_Avoid_: Account session, participant, websocket connection
-
-**Grill answer edit lease**: The transient exclusive right of one Grill
-presence to edit one Grill frontier answer while every participant sees its
-draft and Account identity live.
-_Avoid_: Lock, field ownership, collaborative cursor
-
-**Code Grill**: A Grill whose design-language artifacts are materialized into a
-repository branch at successful completion (not live-committed each round).
-The session is bound at start to the workspace's configured repository and a
-base ref (multi-repo picker later); collaboration still happens in Sweat, while
-the repository holds the code-adjacent glossary and ADR files. Confirmed Issues
-from a Code Grill may receive an Issue branch pointing at that materialized
-ref. Merging that Issue branch into the repository default base is out of band
-(GitHub), not a Sweat landing protocol in v1.
-_Avoid_: General Grill, repo Room
-
-**General Grill**: A Grill whose design-language artifacts are persisted as
-workspace-owned Docs. It does not require a repository.
-_Avoid_: Code Grill, Bulletin (as the design record)
-
-**Doc**: A workspace-owned freeform markdown record that captures the lasting
-design writeup from a General Grill (or similar). It is not typed into
-glossary/ADR kinds, not an Issue, and not a Bulletin.
-_Avoid_: PRD (as a type), Bulletin, Issue description, typed design doc kinds
-
-**Doc tools**: First-party, read-only agent tools for listing and reading Sweat
-Docs through the workspace-wide `workspace.docs` MCP capability. They expose no
-create, update, or delete operation.
-_Avoid_: Outline tools, writable Doc capability
-
-**Grill Skill**: The Skill attached to the grilling agent definition that
-supplies interview style and artifact conventions. Sweat owns the multiplayer
-Grill loop (rounds, shared answering, submit); the Skill is replaceable guidance,
-not the session protocol.
-_Avoid_: System instructions (as a substitute for the Skill), per-Grill Skill pick
 
 **Bulletin**: A workspace-owned freeform markdown note with a position on the
 shared Bulletin board. It is not a unit of work and not scoped to a Room.
@@ -204,17 +142,17 @@ _Avoid_: Quick run, one-shot prompt, temporary Room, Chat
 
 **Chat**: An account-owned, private, multi-turn conversation with one agent
 definition. Its transcript lasts; it is not shared as workspace history. Not a
-Room, not a Oneshot, and not a Grill.
+Room and not a Oneshot.
 _Avoid_: Room, DM, thread, personal Room
 
 **Chat message**: One user or assistant turn in a Chat. An assistant turn may
 include that turn's tool steps from its Chat-linked run.
-_Avoid_: Room message, Oneshot step, Grill narration
+_Avoid_: Room message, Oneshot step
 
 **Chat-linked run**: A warm run bound to one Chat. Follow-up sends reuse the
 provider session; idle TTL recycles it; the next send starts a new warm run
 rehydrated from the persisted transcript.
-_Avoid_: Room-linked run, Oneshot, Grill-linked run
+_Avoid_: Room-linked run, Oneshot
 
 **Room attachment**: Durable bytes and metadata attached to one room message.
 When that message starts a run, the server verifies and copies the attachment
@@ -228,8 +166,8 @@ _Avoid_: Prompt, Issue
 **Issue**: A workspace-owned unit of work — not scoped to a Room — that people
 and agents can create, update, and be assigned to. Issues are the agent-work
 surface: people aim and review; agents execute via Issue-linked runs. An Issue
-may have a parent Issue; a parent groups child Issues toward one outcome (for
-example a feature shaped by Docs from a Grill). An Issue may name a single
+may have a parent Issue; a parent groups child Issues toward one outcome. An
+Issue may name a single
 **owner** and may link to one or more **runs** that execute work toward it.
 Assigning an Agent definition as owner starts an Issue-linked run on that
 Issue when none is already active; assigning an Account sets ownership only
@@ -315,9 +253,8 @@ _Avoid_: Label (as a separate type), category, Objective
 **Issue branch**: An optional repository branch bound to an Issue. When set,
 an Issue-linked run prepares its Git workspace from that branch rather than
 only the workspace default base. If unset, the Issue inherits the nearest
-ancestor's Issue branch when one exists. Any Issue may carry an Issue branch; a
-Code Grill commonly writes the same binding onto Issues confirmed from its
-materialized session branch. When a non-root Issue-linked run starts and the
+ancestor's Issue branch when one exists. Any Issue may carry an Issue branch.
+When a non-root Issue-linked run starts and the
 tree has no Issue branch, the platform binds `sweat/issue/COL-N` on the root
 (N is the root's number) and creates that remote ref from the repository
 default if it does not exist. Publish still uses a platform-assigned run branch;
@@ -326,8 +263,8 @@ child Issues can integrate into the parent's line before that line merges to the
 repository default base. When an Issue-linked run successfully creates a pull
 request and the Issue has no own Issue branch yet, the platform binds that run
 branch onto the Issue so the work is discoverable from the Issue; an existing
-binding (including a Code Grill session branch or the platform root line) is
-left unchanged. That own binding is the Issue's published head. An Issue
+binding (including the platform root line) is left unchanged. That own binding
+is the Issue's published head. An Issue
 integrate run prepares from the parent's Issue branch merged with each direct
 child's published head, not from inherited effective branches.
 _Avoid_: Run branch, sweat/<runId>, PR branch (as synonyms for this binding)

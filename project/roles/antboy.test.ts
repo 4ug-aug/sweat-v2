@@ -5,6 +5,4 @@ test("antboy searches Outline with list_documents and reads with fetch", () => {
   expect(antboyRole.instructions).toContain("outline.list_documents");
   expect(antboyRole.instructions).toContain("outline.fetch");
   expect(antboyRole.instructions).toContain('resource "document"');
-  expect(antboyRole.instructions).not.toContain("workspace.get_doc");
-  expect(antboyRole.instructions).not.toContain("Colony Doc");
 });

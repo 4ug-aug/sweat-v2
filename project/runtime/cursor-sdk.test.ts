@@ -398,7 +398,7 @@ test("openCursorAgentSession multi-send keeps one Agent instance", async () => {
   const { openCursorAgentSession } = await import("./cursor-sdk");
   const session = await openCursorAgentSession(
     {
-      instructions: "Grill",
+      instructions: "Interview",
       agentId: "interviewer",
       apiKey: "k",
       model: "composer-2.5",
@@ -436,7 +436,7 @@ test("persisted Cursor turns resume the same SDK agent", async () => {
   try {
     const request = {
       task: "turn",
-      instructions: "Grill",
+      instructions: "Interview",
       agentId: "interviewer",
       apiKey: "k",
       model: "composer-2.5",

@@ -134,8 +134,14 @@ export type RoomRun = RunSummary & {
   requestedBy: RoomUser
 }
 
+export type OneshotUsage = Pick<
+  RunSummary,
+  'id' | 'state' | 'createdAt' | 'startedAt' | 'completedAt'
+> & { accountId: string }
+
 export type AccountRunAnalytics = {
   delegations: number
+  oneshots: number
   agentCreatedIssues: number
   agentCompletedIssues: number
   runtimeMs: number
@@ -218,6 +224,8 @@ export interface RoomStore {
     userId: string,
     at: number,
   ): void
+  createOneshotUsage(run: OneshotUsage): void
+  updateOneshotUsage(run: OneshotUsage): void
   createRun(run: RoomRun): void
   updateRun(run: RoomRun): void
   failStaleRuns(): RoomRun[]
@@ -1017,17 +1025,25 @@ export function createSqliteRoomStore(sqlite: Sqlite): RoomStore {
       const summary = sqlite
         .prepare(
           `SELECT COUNT(*) AS delegations,
+                  (SELECT COUNT(*) FROM oneshot_usage WHERE account_id = ?) AS oneshots,
                   (SELECT COUNT(*) FROM issue WHERE created_by_kind = 'agent') AS agent_created_issues,
                   (SELECT COUNT(*) FROM issue WHERE status = 'done' AND owner_kind = 'agent') AS agent_completed_issues,
                   COALESCE(SUM(CASE
                     WHEN room_run.state IN ('succeeded', 'failed', 'cancelled')
                       AND room_run.started_at IS NOT NULL AND room_run.completed_at IS NOT NULL
                       AND room_run.completed_at >= room_run.started_at
-                    THEN room_run.completed_at - room_run.started_at ELSE 0 END), 0) AS runtime_ms
+                    THEN room_run.completed_at - room_run.started_at ELSE 0 END), 0)
+                  + (SELECT COALESCE(SUM(CASE
+                      WHEN state IN ('succeeded', 'failed', 'cancelled')
+                        AND started_at IS NOT NULL AND completed_at IS NOT NULL
+                        AND completed_at >= started_at
+                      THEN completed_at - started_at ELSE 0 END), 0)
+                    FROM oneshot_usage WHERE account_id = ?) AS runtime_ms
            FROM room_run WHERE room_run.requested_by_id = ?`,
         )
-        .get(accountId) as {
+        .get(accountId, accountId, accountId) as {
         delegations: number
+        oneshots: number
         agent_created_issues: number
         agent_completed_issues: number
         runtime_ms: number
@@ -1051,6 +1067,7 @@ export function createSqliteRoomStore(sqlite: Sqlite): RoomStore {
       )
       return {
         delegations: summary.delegations,
+        oneshots: summary.oneshots,
         agentCreatedIssues: summary.agent_created_issues,
         agentCompletedIssues: summary.agent_completed_issues,
         runtimeMs: summary.runtime_ms,
@@ -1227,6 +1244,27 @@ export function createSqliteRoomStore(sqlite: Sqlite): RoomStore {
           "UPDATE room_attention SET acknowledged_at = ? WHERE room_id = ? AND root_id = ? AND recipient_id = ? AND acknowledged_at IS NULL AND kind = 'thread_reply'",
         )
         .run(at, roomId, rootId, userId)
+    },
+    createOneshotUsage: (run) => {
+      sqlite
+        .prepare(
+          'INSERT INTO oneshot_usage (run_id, account_id, state, created_at, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          run.id,
+          run.accountId,
+          run.state,
+          run.createdAt,
+          run.startedAt ?? null,
+          run.completedAt ?? null,
+        )
+    },
+    updateOneshotUsage: (run) => {
+      sqlite
+        .prepare(
+          'UPDATE oneshot_usage SET state = ?, started_at = ?, completed_at = ? WHERE run_id = ?',
+        )
+        .run(run.state, run.startedAt ?? null, run.completedAt ?? null, run.id)
     },
     createRun: (run) => {
       sqlite

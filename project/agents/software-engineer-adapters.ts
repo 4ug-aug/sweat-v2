@@ -25,17 +25,6 @@ import {
   type AssignableOwner,
   type WorkspaceIssuesPort,
 } from "../mcp/workspace-issues";
-import {
-  createWorkspaceDocsMcpUpstream,
-  type WorkspaceDocsPort,
-} from "../mcp/workspace-docs";
-import {
-  createWorkspaceGrillMcpUpstream,
-  type GrillFrontier,
-  type GrillIssueProposal,
-  type GrillMaterializeFile,
-  type GrillProposedIssue,
-} from "../mcp/workspace-grill";
 import { commandFailure } from "../sandboxes";
 import { STEP_TEXT_LIMIT } from "../runtime/step";
 import { rosterParticipant } from "./roster-meta";
@@ -96,92 +85,6 @@ export function createWorkspaceIssuesAdapter(options: {
           ...(options.listAssignableOwners
             ? { listAssignableOwners: options.listAssignableOwners }
             : {}),
-        });
-      },
-    },
-  };
-}
-
-export function createWorkspaceDocsAdapter(options: {
-  port: WorkspaceDocsPort;
-}): WorkspaceAgentAdapter {
-  return {
-    capability: {
-      id: "workspace.docs",
-      applies({ grantContext }) {
-        return Boolean(grantContext?.grillId);
-      },
-      createUpstream: () => createWorkspaceDocsMcpUpstream(options),
-    },
-  };
-}
-
-export function createWorkspaceGrillAdapter(options: {
-  port: {
-    setFrontier(
-      grillId: string,
-      frontier: GrillFrontier,
-      now: number,
-    ): { frontier: GrillFrontier } | undefined;
-    setIssueProposal(
-      grillId: string,
-      issues: GrillProposedIssue[],
-      now: number,
-      files?: GrillMaterializeFile[],
-    ): { issueProposal?: GrillIssueProposal } | undefined;
-    setWriteup(
-      grillId: string,
-      writeup: { title: string; body: string },
-      now: number,
-    ): { writeup?: { title: string; body: string } } | undefined;
-  };
-}): WorkspaceAgentAdapter {
-  return {
-    capability: {
-      id: "workspace.grill",
-      applies({ grantContext }) {
-        return Boolean(grantContext?.grillId);
-      },
-      createUpstream({ grantContext }) {
-        const grillId = grantContext?.grillId;
-        if (!grillId) {
-          throw new Error(
-            "A grill id is required for the workspace grill capability",
-          );
-        }
-        return createWorkspaceGrillMcpUpstream({
-          port: {
-            setFrontier(questions, drafts) {
-              const grill = options.port.setFrontier(
-                grillId,
-                { questions, drafts: drafts ?? {} },
-                Date.now(),
-              );
-              if (!grill) throw new Error(`Grill not found: ${grillId}`);
-              return grill.frontier;
-            },
-            proposeIssues(issues, files) {
-              const grill = options.port.setIssueProposal(
-                grillId,
-                issues,
-                Date.now(),
-                files,
-              );
-              if (!grill?.issueProposal)
-                throw new Error(`Grill not found: ${grillId}`);
-              return grill.issueProposal;
-            },
-            proposeWriteup(writeup) {
-              const grill = options.port.setWriteup(
-                grillId,
-                writeup,
-                Date.now(),
-              );
-              if (!grill?.writeup)
-                throw new Error(`Grill not found: ${grillId}`);
-              return grill.writeup;
-            },
-          },
         });
       },
     },

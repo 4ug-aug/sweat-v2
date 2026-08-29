@@ -1,7 +1,4 @@
-import { Button } from '#/components/ui/button'
 import { SidebarInset, SidebarProvider } from '#/components/ui/sidebar'
-import { DocSessionHeader } from '#/features/docs/components/doc-session'
-import { GrillSessionHeader } from '#/features/grills/components/grill-session'
 import type { IssueStatus } from '#/features/issues/types'
 import { MembersPanel } from '#/features/members/members-panel'
 import { OneshotPanel } from '#/features/oneshot/oneshot-panel'
@@ -16,11 +13,8 @@ import { useWindowKeydown } from '#/hooks/use-window-keydown'
 import {
   Box,
   CalendarClock,
-  FileText,
-  Flame,
   Hash,
   Lock,
-  Plus,
   Wifi,
   WifiOff,
 } from 'lucide-react'
@@ -90,8 +84,6 @@ export function Dashboard({
     clearThreadAttention,
   } = useRooms(user.id, view === 'room')
   const selectedIssueId = view === 'issues' ? location.id : undefined
-  const selectedDocId = view === 'docs' ? location.id : undefined
-  const selectedGrillId = view === 'grills' ? location.id : undefined
   const selectedMachineId = view === 'vms' ? location.id : undefined
   const selectedChatId = view === 'chat' ? location.id : undefined
   const selectRef = useRef(select)
@@ -147,7 +139,6 @@ export function Dashboard({
     open: boolean
     status?: IssueStatus
   }>({ open: false })
-  const [grillStartOpen, setGrillStartOpen] = useState(false)
   const openView = (next: DashboardView) => {
     navigate({
       view: next,
@@ -158,9 +149,6 @@ export function Dashboard({
     user.role === 'admin'
       ? (sandboxId: string) => navigate({ view: 'vms', id: sandboxId })
       : undefined
-  const openDoc = (docId: string) => {
-    navigate({ view: 'docs', id: docId })
-  }
   const [searchOpen, setSearchOpen] = useState(false)
   const [oneshotOpen, setOneshotOpen] = useState(false)
   const pendingThreadFocusRef = useRef<
@@ -249,8 +237,6 @@ export function Dashboard({
         onOpenSchedules={() => openView('schedules')}
         onOpenIssues={() => openView('issues')}
         onOpenBulletins={() => openView('bulletins')}
-        onOpenDocs={() => openView('docs')}
-        onOpenGrills={() => openView('grills')}
         onOpenChat={() => openView('chat')}
         onOpenVms={() => {
           if (user.role === 'admin') openView('vms')
@@ -264,17 +250,7 @@ export function Dashboard({
           view !== 'issues' &&
           view !== 'bulletins' && (
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-              {view === 'grills' && selectedGrillId ? (
-                <GrillSessionHeader
-                  grillId={selectedGrillId}
-                  onBack={() => navigate({ view: 'grills' })}
-                />
-              ) : view === 'docs' && selectedDocId ? (
-                <DocSessionHeader
-                  docId={selectedDocId}
-                  onBack={() => navigate({ view: 'docs' })}
-                />
-              ) : view === 'vms' && selectedMachineId ? (
+              {view === 'vms' && selectedMachineId ? (
                 <MachineSessionHeader
                   machineId={selectedMachineId}
                   onBack={() => navigate({ view: 'vms' })}
@@ -283,10 +259,6 @@ export function Dashboard({
                 <>
                   {view === 'schedules' ? (
                     <CalendarClock className="size-4 text-muted-foreground" />
-                  ) : view === 'docs' ? (
-                    <FileText className="size-4 text-muted-foreground" />
-                  ) : view === 'grills' ? (
-                    <Flame className="size-4 text-muted-foreground" />
                   ) : view === 'vms' ? (
                     <Box className="size-4 text-muted-foreground" />
                   ) : room?.visibility === 'private' ? (
@@ -297,13 +269,9 @@ export function Dashboard({
                   <p className="font-semibold">
                     {view === 'schedules'
                       ? 'Schedules'
-                      : view === 'docs'
-                        ? 'Docs'
-                        : view === 'grills'
-                          ? 'Grills'
-                          : view === 'vms'
-                            ? 'Machines'
-                            : (room?.name ?? 'Rooms')}
+                      : view === 'vms'
+                        ? 'Machines'
+                        : (room?.name ?? 'Rooms')}
                   </p>
                   {view === 'room' && room?.visibility === 'private' && (
                     <MembersPanel
@@ -311,17 +279,6 @@ export function Dashboard({
                       currentUserId={user.id}
                       membersChangedAt={membersChangedAt}
                     />
-                  )}
-                  {view === 'grills' && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="ml-auto"
-                      onClick={() => setGrillStartOpen(true)}
-                    >
-                      <Plus data-icon="inline-start" />
-                      Enter the Grill
-                    </Button>
                   )}
                   {view === 'room' && (
                     <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -383,17 +340,6 @@ export function Dashboard({
             onSelectedIssueIdChange={(id) =>
               navigate({ view: 'issues', ...(id ? { id } : {}) })
             }
-            selectedDocId={selectedDocId}
-            onSelectedDocIdChange={(id) =>
-              navigate({ view: 'docs', ...(id ? { id } : {}) })
-            }
-            grillStartOpen={grillStartOpen}
-            onGrillStartOpenChange={setGrillStartOpen}
-            selectedGrillId={selectedGrillId}
-            onSelectedGrillIdChange={(id) =>
-              navigate({ view: 'grills', ...(id ? { id } : {}) })
-            }
-            onOpenDoc={openDoc}
             selectedMachineId={selectedMachineId}
             onSelectedMachineIdChange={(id) =>
               navigate({ view: 'vms', ...(id ? { id } : {}) })

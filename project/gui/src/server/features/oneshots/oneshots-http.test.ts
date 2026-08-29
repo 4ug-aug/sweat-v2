@@ -62,10 +62,12 @@ function fakeControl(
 
 test('oneshot session starts with oneshot grant context', () => {
   let request: WorkspaceAgentStartRunRequest | undefined
+  const tracked: RunSummary[] = []
   const session = createOneshotSession({
     control: fakeControl((value) => {
       request = value
     }),
+    onRunCreated: (run) => tracked.push(run),
   })
   const run = session.start({
     accountId: 'user-1',
@@ -80,6 +82,7 @@ test('oneshot session starts with oneshot grant context', () => {
     agentDefinitionId: 'antboy',
     repositoryBase: 'main',
   })
+  expect(tracked).toMatchObject([{ id: run.id, accountId: 'user-1' }])
 })
 
 test('oneshot session rejects second active run', () => {
@@ -99,7 +102,11 @@ test('oneshot session rejects second active run', () => {
 })
 
 test('oneshot session activeForAccount and discard clear the slot', async () => {
-  const session = createOneshotSession({ control: fakeControl() })
+  const tracked: RunSummary[] = []
+  const session = createOneshotSession({
+    control: fakeControl(),
+    onRunChange: (run) => tracked.push(run),
+  })
   const run = session.start({
     accountId: 'user-1',
     task: 'first',
@@ -108,6 +115,7 @@ test('oneshot session activeForAccount and discard clear the slot', async () => 
   expect(session.activeForAccount('user-1')?.id).toBe(run.id)
   expect(session.activeForAccount('user-2')).toBeUndefined()
   await session.discard(run.id, 'user-1')
+  expect(tracked).toMatchObject([{ id: run.id, state: 'cancelled' }])
   expect(session.activeForAccount('user-1')).toBeUndefined()
   expect(session.get(run.id, 'user-1')).toBeUndefined()
 })

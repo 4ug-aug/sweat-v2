@@ -4,10 +4,6 @@ import { softwareEngineerRole } from "./software-engineer";
 test("the software engineer requests scoped issue and pull request tools", () => {
   expect(softwareEngineerRole.id).toBe("software-engineer");
   expect(softwareEngineerRole.requestedCapabilities).toContainEqual({
-    id: "workspace.docs",
-    tools: ["workspace.list_docs", "workspace.get_doc"],
-  });
-  expect(softwareEngineerRole.requestedCapabilities).toContainEqual({
     id: "workspace.issues",
     tools: [
       "workspace.list_issues",
@@ -50,6 +46,4 @@ test("the software engineer requests scoped issue and pull request tools", () =>
     "Do not use workspace.post_message to deliver your final result",
   );
   expect(softwareEngineerRole.instructions).not.toContain("Room");
-  expect(softwareEngineerRole.instructions).not.toContain("Grill");
-  expect(softwareEngineerRole.instructions).not.toContain("Colony Doc");
 });

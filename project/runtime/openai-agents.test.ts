@@ -255,8 +255,8 @@ test("custom providers rewrite vLLM mcp_call items into function calls", () => {
 });
 
 test("vLLM mcp_call tool names map onto Agents SDK function tool names", () => {
-  expect(toAgentsFunctionToolName("workspace.set_grill_frontier")).toBe(
-    "workspace_set_grill_frontier",
+  expect(toAgentsFunctionToolName("workspace.post_message")).toBe(
+    "workspace_post_message",
   );
   const output = [
     {
@@ -267,8 +267,8 @@ test("vLLM mcp_call tool names map onto Agents SDK function tool names", () => {
       providerData: {
         type: "mcp_call",
         id: "mcp_1",
-        name: "workspace.propose_grill_writeup",
-        arguments: '{"title":"t","body":"b"}',
+        name: "workspace.post_message",
+        arguments: '{"text":"done"}',
       },
     },
   ];
@@ -278,8 +278,8 @@ test("vLLM mcp_call tool names map onto Agents SDK function tool names", () => {
       type: "function_call",
       id: "mcp_1",
       callId: "mcp_1",
-      name: "workspace_propose_grill_writeup",
-      arguments: '{"title":"t","body":"b"}',
+      name: "workspace_post_message",
+      arguments: '{"text":"done"}',
       status: "completed",
     },
   ]);

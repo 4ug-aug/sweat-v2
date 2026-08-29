@@ -227,20 +227,6 @@ export function createWorkspaceAgentsExecutor(options: {
       seen.add(adapter.id);
       merged.push(adapter);
     }
-    // Grill sessions get only Grill tools plus read-only workspace Docs —
-    // Issues/GitHub/connections drown out the frontier tool.
-    if (grantContext?.grillId) {
-      const grillOnly = merged.filter(
-        (adapter) =>
-          adapter.id === "workspace.grill" || adapter.id === "workspace.docs",
-      );
-      if (!grillOnly.some((adapter) => adapter.id === "workspace.grill")) {
-        throw new Error(
-          "Grill-linked runs require the workspace.grill capability",
-        );
-      }
-      return grillOnly;
-    }
     return merged;
   };
 

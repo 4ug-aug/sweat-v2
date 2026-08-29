@@ -43,7 +43,6 @@ import {
 import type {RoomMessage, RoomRun, RoomSummary, RoomStore, RoomUser, StoredStep} from './features/rooms/room-store';
 import { createRoomMessageHub } from './features/rooms/room-hub'
 import { createRoomAttachmentSource } from './features/rooms/attachments'
-import { createSqliteGrillStore } from './features/grills/grill-store'
 
 class FakeRunControl implements RunControl {
   private listeners = new Set<(run: RunSummary) => void>()
@@ -3497,210 +3496,21 @@ test('verifyRealtimeTicket rejects tampered and malformed tickets', () => {
   expect(verifyRealtimeTicket('')).toBeUndefined()
 })
 
-test('Grill stream leases a field, broadcasts drafts, and blocks conflicting edits', async () => {
+test('removed Doc and Grill endpoints use the generic not-found response', async () => {
   const store = roomStore()
-  const grillStore = createSqliteGrillStore(store.sqlite, {
-    hasGuidanceSkill: () => true,
-  })
-  grillStore.createGrill({
-    id: 'g-live',
-    kind: 'general',
-    visibility: 'workspace-open',
-    agentDefinitionId: 'interviewer',
-    createdBy: 'user-1',
-    createdAt: 1,
-  })
-  grillStore.setFrontier(
-    'g-live',
-    { questions: [{ id: 'q1', prompt: 'Ship it?' }], drafts: {} },
-    2,
-  )
-  store.seedAccounts([
-    { id: 'user-1', name: 'Ada' },
-    { id: 'user-2', name: 'Grace' },
-  ])
-  const control = new FakeRunControl()
-  const { coordinator, base } = await makeCoordinator({
-    store,
-    grillStore,
-    control,
-  })
-  const runResponse = await fetch(`${base}/api/grills/g-live/run`, {
-    method: 'POST',
-    headers: {
-      origin: 'http://gui.test',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ task: 'Grill this' }),
-  })
-  expect(runResponse.status).toBe(201)
-  const run = ((await runResponse.json()) as { run: RunSummary }).run
-  const wsBase = base.replace(/^http/, 'ws')
-  const ada = await open(
-    `${wsBase}/api/grills/g-live/stream?ticket=${mintRealtimeTicket('user-1')}`,
-  )
-  const grace = await open(
-    `${wsBase}/api/grills/g-live/stream?ticket=${mintRealtimeTicket('user-2')}`,
-  )
-  expect(await ada.next()).toMatchObject({
-    type: 'grill.snapshot',
-    participants: [{ id: 'user-1' }],
-  })
-  expect(await grace.next()).toMatchObject({
-    type: 'grill.snapshot',
-    participants: [{ id: 'user-1' }, { id: 'user-2' }],
-  })
-  await ada.next()
-  expect(await ada.next()).toMatchObject({
-    type: 'grill.presence.changed',
-    participants: [{ id: 'user-1' }, { id: 'user-2' }],
-  })
-  expect((await grace.next()).type).toBe('grill.presence.changed')
-
-  control.emitStep(run.id, {
-    kind: 'message',
-    text: 'I found one decision to resolve.',
-    at: 3,
-  })
-  expect(await ada.next()).toMatchObject({
-    type: 'grill.activity.changed',
-    latestStep: { kind: 'message' },
-    narration: [{ text: 'I found one decision to resolve.' }],
-  })
-  expect((await grace.next()).type).toBe('grill.activity.changed')
-  ada.socket.send('snapshot')
-  expect(await ada.next()).toMatchObject({
-    type: 'grill.snapshot',
-    narration: [{ text: 'I found one decision to resolve.' }],
-  })
-
-  ada.socket.send(JSON.stringify({ type: 'grill.focus', questionId: 'q1' }))
-  expect(await ada.next()).toMatchObject({
-    type: 'grill.lease.changed',
-    lease: { editor: { id: 'user-1', name: 'Ada' } },
-  })
-  expect((await grace.next()).type).toBe('grill.lease.changed')
-
-  ada.socket.send(
-    JSON.stringify({ type: 'grill.draft', questionId: 'q1', value: 'Yes' }),
-  )
-  expect(await grace.next()).toMatchObject({
-    type: 'grill.draft.changed',
-    questionId: 'q1',
-    value: 'Yes',
-  })
-  expect((await ada.next()).type).toBe('grill.draft.changed')
-  expect(grillStore.getGrill('g-live')?.frontier.drafts.q1).toBe('Yes')
-
-  grace.socket.send(
-    JSON.stringify({ type: 'grill.draft', questionId: 'q1', value: 'No' }),
-  )
-  expect(await grace.next()).toMatchObject({
-    type: 'grill.edit.rejected',
-    reason: 'lease-held',
-  })
-  expect(grillStore.getGrill('g-live')?.frontier.drafts.q1).toBe('Yes')
-
-  const submit = await fetch(`${base}/api/grills/g-live/submit`, {
-    method: 'POST',
-    headers: { origin: 'http://gui.test' },
-  })
-  expect(submit.status).toBe(409)
-
-  ada.socket.close()
-  expect(await grace.next()).toMatchObject({
-    type: 'grill.lease.changed',
-    questionId: 'q1',
-  })
-  expect(await grace.next()).toMatchObject({
-    type: 'grill.presence.changed',
-    participants: [{ id: 'user-2' }],
-  })
-  grace.socket.close()
-  await coordinator.stop()
-  store.sqlite.close()
-})
-
-test('Grill submit broadcasts grill.changed to other Accounts on the stream', async () => {
-  const store = roomStore()
-  const grillStore = createSqliteGrillStore(store.sqlite, {
-    hasGuidanceSkill: () => true,
-  })
-  grillStore.createGrill({
-    id: 'g-submit',
-    kind: 'general',
-    visibility: 'workspace-open',
-    agentDefinitionId: 'interviewer',
-    createdBy: 'user-1',
-    createdAt: 1,
-  })
-  grillStore.setFrontier(
-    'g-submit',
-    { questions: [{ id: 'q1', prompt: 'Ship it?' }], drafts: { q1: 'Yes' } },
-    2,
-  )
-  store.seedAccounts([
-    { id: 'user-1', name: 'Ada' },
-    { id: 'user-2', name: 'Grace' },
-  ])
-  const { coordinator, base } = await makeCoordinator({ store, grillStore })
-  const wsBase = base.replace(/^http/, 'ws')
-  const ada = await open(
-    `${wsBase}/api/grills/g-submit/stream?ticket=${mintRealtimeTicket('user-1')}`,
-  )
-  const grace = await open(
-    `${wsBase}/api/grills/g-submit/stream?ticket=${mintRealtimeTicket('user-2')}`,
-  )
-  expect((await ada.next()).type).toBe('grill.snapshot')
-  expect((await grace.next()).type).toBe('grill.snapshot')
-  await ada.next()
-  expect((await ada.next()).type).toBe('grill.presence.changed')
-  expect((await grace.next()).type).toBe('grill.presence.changed')
-
-  ada.socket.send(JSON.stringify({ type: 'grill.focus', questionId: 'q1' }))
-  expect((await ada.next()).type).toBe('grill.lease.changed')
-  expect((await grace.next()).type).toBe('grill.lease.changed')
-
-  ada.socket.send(JSON.stringify({ type: 'grill.blur', questionId: 'q1' }))
-  expect((await ada.next()).type).toBe('grill.lease.changed')
-  expect((await grace.next()).type).toBe('grill.lease.changed')
-
-  const changedAda = ada.next()
-  const changedGrace = grace.next()
-  const submit = await fetch(`${base}/api/grills/g-submit/submit`, {
-    method: 'POST',
-    headers: {
-      origin: 'http://gui.test',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ drafts: { q1: 'Yes' } }),
-  })
-  expect(submit.status).toBe(200)
-  expect(await changedAda).toMatchObject({
-    type: 'grill.changed',
-    grill: {
-      id: 'g-submit',
-      frontier: { questions: [], drafts: {} },
-      settledAnswers: [
-        {
-          questions: [{ id: 'q1', prompt: 'Ship it?' }],
-          answers: { q1: 'Yes' },
-        },
-      ],
-    },
-  })
-  expect(await changedGrace).toMatchObject({
-    type: 'grill.changed',
-    grill: {
-      id: 'g-submit',
-      frontier: { questions: [], drafts: {} },
-    },
-  })
-
-  ada.socket.close()
-  grace.socket.close()
-  await coordinator.stop()
-  store.sqlite.close()
+  const { coordinator, base } = await makeCoordinator({ store })
+  try {
+    for (const path of ['/api/docs', '/api/grills', '/api/grills/old/stream']) {
+      const response = await fetch(`${base}${path}`, {
+        headers: { origin: 'http://gui.test' },
+      })
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'Not found' })
+    }
+  } finally {
+    await coordinator.stop()
+    store.sqlite.close()
+  }
 })
 
 test('sandbox provider configuration accepts only the supported providers', () => {

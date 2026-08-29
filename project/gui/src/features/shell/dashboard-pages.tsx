@@ -22,16 +22,6 @@ const ChatsPage = lazy(() =>
     default: module.ChatsPage,
   })),
 )
-const DocsPage = lazy(() =>
-  import('#/features/docs/docs-page').then((module) => ({
-    default: module.DocsPage,
-  })),
-)
-const GrillsPage = lazy(() =>
-  import('#/features/grills/grills-page').then((module) => ({
-    default: module.GrillsPage,
-  })),
-)
 const IssuesPage = lazy(() =>
   import('#/features/issues/issues-page').then((module) => ({
     default: module.IssuesPage,
@@ -61,13 +51,6 @@ export function DashboardPages({
   onIssueCreateChange,
   selectedIssueId,
   onSelectedIssueIdChange,
-  selectedDocId,
-  onSelectedDocIdChange,
-  grillStartOpen,
-  onGrillStartOpenChange,
-  selectedGrillId,
-  onSelectedGrillIdChange,
-  onOpenDoc,
   selectedMachineId,
   onSelectedMachineIdChange,
   onOpenMachine,
@@ -81,13 +64,6 @@ export function DashboardPages({
   onIssueCreateChange: (open: boolean, status?: IssueStatus) => void
   selectedIssueId: string | undefined
   onSelectedIssueIdChange: (id: string | undefined) => void
-  selectedDocId: string | undefined
-  onSelectedDocIdChange: (id: string | undefined) => void
-  grillStartOpen: boolean
-  onGrillStartOpenChange: (open: boolean) => void
-  selectedGrillId: string | undefined
-  onSelectedGrillIdChange: (id: string | undefined) => void
-  onOpenDoc: (docId: string) => void
   selectedMachineId: string | undefined
   onSelectedMachineIdChange: (id: string | undefined) => void
   onOpenMachine?: (sandboxId: string) => void
@@ -125,25 +101,6 @@ export function DashboardPages({
         />
       )}
       {view === 'bulletins' && <BulletinsPage currentUserId={user.id} />}
-      {view === 'docs' && (
-        <div className="min-h-0 flex-1 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out fill-mode-backwards motion-reduce:animate-none">
-          <DocsPage
-            selectedId={selectedDocId}
-            onSelectedIdChange={onSelectedDocIdChange}
-          />
-        </div>
-      )}
-      {view === 'grills' && (
-        <div className="min-h-0 flex-1 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out fill-mode-backwards motion-reduce:animate-none">
-          <GrillsPage
-            startOpen={grillStartOpen}
-            onStartOpenChange={onGrillStartOpenChange}
-            selectedId={selectedGrillId}
-            onSelectedIdChange={onSelectedGrillIdChange}
-            onOpenDoc={onOpenDoc}
-          />
-        </div>
-      )}
       {view === 'vms' && user.role === 'admin' && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <VmsPage

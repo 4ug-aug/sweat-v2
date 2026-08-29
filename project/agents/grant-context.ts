@@ -6,10 +6,9 @@ export type AgentGrantContext = {
   threadReadRootId?: string;
   scheduleId?: string;
   issueId?: string;
-  grillId?: string;
-  /** Private ad-hoc dispatch; not a Room / Issue / Schedule / Grill link. */
+  /** Private ad-hoc dispatch; not a Room / Issue / Schedule link. */
   oneshotId?: string;
-  /** Private multi-turn Chat; not a Room / Oneshot / Grill link. */
+  /** Private multi-turn Chat; not a Room / Oneshot link. */
   chatId?: string;
   /** Checkout + PR merge base override (Issue branch or Oneshot revision). */
   repositoryBase?: string;

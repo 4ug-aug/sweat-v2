@@ -145,7 +145,7 @@ export interface RuntimeRequest {
   onStep?: (step: Step) => void;
 }
 
-/** Multi-turn provider session kept alive across Grill follow-up submits. */
+/** Multi-turn provider session kept alive across follow-up turns. */
 export interface WarmRuntimeSession {
   runTurn(task: string): Promise<ExecutionResult>;
   dispose(): Promise<void>;
@@ -159,7 +159,7 @@ export interface AgentProvider {
   ): Promise<WarmRuntimeSession>;
 }
 
-/** Default idle recycle for Grill-linked warm runs (15 minutes). */
+/** Default idle recycle for warm runs (15 minutes). */
 export const DEFAULT_WARM_IDLE_TTL_MS = 15 * 60_000;
 
 export interface StartRunRequest<Input extends RunInput = never> {
@@ -495,7 +495,7 @@ export function createRunExecutor<Input extends RunInput = never>(dependencies: 
     let sandbox: Sandbox | undefined;
     try {
       if (!dependencies.runtime.openWarmSession) {
-        throw new Error("Runtime does not support warm Grill-linked runs");
+        throw new Error("Runtime does not support warm runs");
       }
       if (dependencies.inputs?.prepare)
         progress(record.id, "Preparing workspace");
@@ -882,7 +882,7 @@ export function createRunExecutor<Input extends RunInput = never>(dependencies: 
         throw new Error("A capability session factory is required for a capability grant");
       }
       if (request.warm && !dependencies.runtime.openWarmSession) {
-        throw new Error("Runtime does not support warm Grill-linked runs");
+        throw new Error("Runtime does not support warm runs");
       }
       if (request.capabilityGrant) {
         const requestedTools = new Set(

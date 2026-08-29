@@ -21,7 +21,7 @@ export function createRoutingAgentRuntime(options: {
     openWarmSession: async (sandbox, request) => {
       const provider = select(request);
       if (!provider.openWarmSession) {
-        throw new Error("Runtime does not support warm Grill-linked runs");
+        throw new Error("Runtime does not support warm runs");
       }
       return provider.openWarmSession(sandbox, request);
     },

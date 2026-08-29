@@ -154,3 +154,14 @@ test('a malformed side surface is dropped but the rest of the location survives'
     id: 'general',
   })
 })
+
+test('removed dashboard views fall back to the default Room location', () => {
+  for (const view of ['docs', 'grills']) {
+    expect(
+      readDashboardLocation(
+        { sweatDashboard: { accountId: 'account-1', location: { view } } },
+        'account-1',
+      ) ?? { view: 'room' },
+    ).toEqual({ view: 'room' })
+  }
+})

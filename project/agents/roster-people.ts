@@ -10,13 +10,6 @@ export const capabilityPresentation: Record<
   string,
   { name: string; tools: Record<string, string> }
 > = {
-  "workspace.docs": {
-    name: "Docs",
-    tools: {
-      "workspace.list_docs": "List Docs",
-      "workspace.get_doc": "Read Docs",
-    },
-  },
   "workspace.issues": {
     name: "Issues",
     tools: {
@@ -103,14 +96,6 @@ export const capabilityPresentation: Record<
     tools: {
       "workspace.read_messages": "Read messages",
       "workspace.post_message": "Post messages",
-    },
-  },
-  "workspace.grill": {
-    name: "Grill",
-    tools: {
-      "workspace.set_grill_frontier": "Set grill frontier",
-      "workspace.propose_grill_issues": "Propose grill Issues",
-      "workspace.propose_grill_writeup": "Propose grill Doc writeup",
     },
   },
 };

@@ -112,7 +112,7 @@ resolve(id, grantContext) { /* ... */ runtime: { kind: "cursor", image, cursor: 
 changes, in dependency order:
 
 1. **`AgentGrantContext` gains `accountId`.** It already carries `roomId`,
-   `chatId`, `issueId`, `oneshotId`, `grillId` — the account that started the
+   `chatId`, `issueId`, and `oneshotId` — the account that started the
    run belongs in the same snapshot. `room_run.requested_by_id` proves the
    value is already available at every room start path. Schedules have no live
    actor, so a schedule needs an owning account; issue-dispatch child runs

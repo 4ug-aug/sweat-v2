@@ -188,7 +188,7 @@ export function stripMcpProtocolInput(
 
 /**
  * Match `@openai/agents` `toFunctionToolName`: MCP tools such as
- * `workspace.set_grill_frontier` are registered as `workspace_set_grill_frontier`.
+ * `workspace.post_message` are registered as `workspace_post_message`.
  */
 export function toAgentsFunctionToolName(name: string): string {
   const sanitized = name.replace(/\s/g, "_").replace(/[^a-zA-Z0-9]/g, "_");
@@ -320,7 +320,7 @@ export async function runAgent(
     onStep?: (step: Step) => void;
     /** Host path bind-mounted as `work/` in the SDK session. Defaults to cwd. */
     workspaceRoot?: string;
-    /** Reuse across warm Grill follow-ups for conversation continuity. */
+    /** Reuse across warm follow-ups for conversation continuity. */
     session?: Session;
     /** When set with an external session, skip opening/closing MCP. */
     mcpServers?: Awaited<ReturnType<typeof MCPServers.open>>;
@@ -491,7 +491,7 @@ export async function saveOpenAIAgentSession(
   );
 }
 
-/** Warm Grill path: MemorySession continuity across follow-up submits. */
+/** Warm path: MemorySession continuity across follow-up turns. */
 export async function openOpenAIAgentSession(
   request: Omit<AgentRuntimeRequest, "task">,
   dependencies: {

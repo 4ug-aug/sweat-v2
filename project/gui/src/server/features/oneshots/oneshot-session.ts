@@ -36,6 +36,8 @@ const isActive = (state: OneshotRun['state']): boolean =>
 
 export function createOneshotSession(options: {
   control: RunControl
+  onRunCreated?: (run: OneshotRun) => void
+  onRunChange?: (run: OneshotRun) => void
 }): OneshotSession {
   const runs = new Map<string, OneshotRun>()
   const steps = new Map<string, RunStep[]>()
@@ -56,7 +58,9 @@ export function createOneshotSession(options: {
   const project = (summary: RunSummary): void => {
     const existing = runs.get(summary.id)
     if (!existing) return
-    runs.set(summary.id, { ...existing, ...summary })
+    const changed = { ...existing, ...summary }
+    runs.set(summary.id, changed)
+    options.onRunChange?.(changed)
   }
 
   const unsubscribe = options.control.subscribe(project)
@@ -92,6 +96,7 @@ export function createOneshotSession(options: {
               accountId: input.accountId,
               ...(repositoryBase ? { repositoryBase } : {}),
             }
+            options.onRunCreated?.(created)
             runs.set(created.id, created)
             steps.set(created.id, [])
             return created
@@ -108,12 +113,16 @@ export function createOneshotSession(options: {
       if (!summary) return existing
       const changed: OneshotRun = { ...existing, ...summary }
       runs.set(runId, changed)
+      options.onRunChange?.(changed)
       return changed
     },
     async discard(runId, accountId) {
       const existing = getForAccount(runId, accountId)
       if (!existing) return undefined
-      if (isActive(existing.state)) await options.control.cancel(runId)
+      if (isActive(existing.state)) {
+        const summary = await options.control.cancel(runId)
+        if (summary) options.onRunChange?.({ ...existing, ...summary })
+      }
       runs.delete(runId)
       steps.delete(runId)
       return existing

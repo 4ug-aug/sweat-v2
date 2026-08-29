@@ -13,8 +13,6 @@ import {
 } from './coordinator'
 import { createSqliteBulletinStore } from './features/bulletins/bulletin-store'
 import { createSqliteChatStore } from './features/chats/chat-store'
-import { createSqliteDocStore } from './features/docs/doc-store'
-import { createSqliteGrillStore, type Grill } from './features/grills/grill-store'
 import {
   createSqliteIssueStore,
   resolveIssue,
@@ -60,12 +58,10 @@ if (import.meta.main) {
     {
       createGitHubSoftwareEngineerAdapter,
       createLinearSoftwareEngineerAdapter,
-      createWorkspaceDocsAdapter,
       createWorkspaceIssuesAdapter,
-      createWorkspaceGrillAdapter,
       createWorkspaceSoftwareEngineerAdapter,
     },
-    { createGitHubTokenClient, publishGitHubBranchFiles },
+    { createGitHubTokenClient },
     { createMcpGatewayHttpServer },
     { createAppleContainerClient },
     { createAppleContainerSandboxProvider },
@@ -112,7 +108,6 @@ if (import.meta.main) {
   const scheduleStore = createSqliteScheduleStore(sqlite)
   const issueStore = createSqliteIssueStore(sqlite, githubRepository)
   const bulletinStore = createSqliteBulletinStore(sqlite)
-  const docStore = createSqliteDocStore(sqlite)
   const chatStore = createSqliteChatStore(sqlite)
   const linearAccessToken = process.env.LINEAR_MCP_API_KEY
   const githubBase = process.env.SWEAT_GITHUB_BASE ?? 'main'
@@ -125,44 +120,6 @@ if (import.meta.main) {
   const github = githubRepository
     ? createGitHubTokenClient(process.env.SWEAT_GITHUB_TOKEN ?? '')
     : undefined
-  const grillStore = createSqliteGrillStore(sqlite, {
-    hasGuidanceSkill: (agentDefinitionId) =>
-      skills.listAttachedSkillIds(agentDefinitionId).length > 0,
-    defaultRepository: process.env.SWEAT_GITHUB_REPOSITORY,
-    defaultBaseRef: process.env.SWEAT_GITHUB_BASE ?? 'main',
-    createIssue: (input) =>
-      issueStore.createIssue({
-        id: input.id,
-        title: input.title,
-        description: input.description,
-        ...(input.parentId ? { parentId: input.parentId } : {}),
-        createdBy: input.createdBy,
-        createdAt: input.createdAt,
-      }),
-    createDoc: (input) =>
-      docStore.createDoc({
-        id: input.id,
-        title: input.title,
-        body: input.body,
-        createdBy: input.createdBy,
-        createdAt: input.createdAt,
-      }),
-    setIssueBranch: (issueId, branch, now) => {
-      issueStore.updateIssue(issueId, { branch }, now)
-    },
-    ...(github
-      ? {
-          materializeCodeGrill: async (input) =>
-            publishGitHubBranchFiles({
-              octokit: github,
-              repository: input.repository,
-              base: input.baseRef,
-              branch: input.branch,
-              files: input.files,
-            }),
-        }
-      : {}),
-  })
   const issueNotify = {
     onCreated: (_issue: Issue) => {},
     onChanged: (_issue: Issue) => {},
@@ -175,9 +132,6 @@ if (import.meta.main) {
       if (!issue) throw new Error('Issue not found')
       return { issue }
     },
-  }
-  const grillNotify = {
-    onChanged: (_grill: Grill) => {},
   }
   const messages = createRoomMessageHub(store)
   const attachmentsDirectory = attachmentDirectory(
@@ -262,19 +216,6 @@ if (import.meta.main) {
             postMessage: (input) => {
               messages.postMessage(input)
             },
-          },
-        }),
-        createWorkspaceDocsAdapter({
-          port: {
-            listDocs: () =>
-              docStore.listDocs().map((doc) => ({
-                id: doc.id,
-                title: doc.title,
-                createdBy: doc.createdBy,
-                createdAt: doc.createdAt,
-                updatedAt: doc.updatedAt,
-              })),
-            getDoc: (id) => docStore.getDoc(id),
           },
         }),
         createWorkspaceIssuesAdapter({
@@ -376,30 +317,6 @@ if (import.meta.main) {
             })),
           ],
         }),
-        createWorkspaceGrillAdapter({
-          port: {
-            setFrontier: (grillId, frontier, now) => {
-              const grill = grillStore.setFrontier(grillId, frontier, now)
-              if (grill) grillNotify.onChanged(grill)
-              return grill
-            },
-            setIssueProposal: (grillId, issues, now, files) => {
-              const grill = grillStore.setIssueProposal(
-                grillId,
-                issues,
-                now,
-                files,
-              )
-              if (grill) grillNotify.onChanged(grill)
-              return grill
-            },
-            setWriteup: (grillId, writeup, now) => {
-              const grill = grillStore.setWriteup(grillId, writeup, now)
-              if (grill) grillNotify.onChanged(grill)
-              return grill
-            },
-          },
-        }),
         ...(linearAccessToken
           ? [
               createLinearSoftwareEngineerAdapter({
@@ -458,10 +375,7 @@ if (import.meta.main) {
     scheduleStore,
     issueStore,
     bulletinStore,
-    docStore,
     chatStore,
-    grillStore,
-    grillNotify,
     issueNotify,
     agentDefinitions: () => {
       const attachments = skills.listAttachments()

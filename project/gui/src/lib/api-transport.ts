@@ -272,12 +272,3 @@ export function connectWorkspaceStream(
     },
   }
 }
-
-export const connectGrillStream = (
-  grillId: string,
-  handlers: RealtimeStreamHandlers,
-) =>
-  connectRealtimeStream(
-    `/api/grills/${encodeURIComponent(grillId)}/stream`,
-    handlers,
-  )

@@ -390,65 +390,6 @@ test("GitHub validates pull request arguments before publishing", async () => {
     .rejects.toThrow("GitHub pull request title is required");
 });
 
-test("publishGitHubBranchFiles creates a remote branch from base with file contents", async () => {
-  const { publishGitHubBranchFiles } = await import("./github");
-  const requests: Array<{ url: string; method?: string; body?: string }> = [];
-  const responses = [
-    { object: { sha: "base-commit" } },
-    { tree: { sha: "base-tree" } },
-    { sha: "blob-1" },
-    { sha: "blob-2" },
-    { sha: "tree" },
-    { sha: "commit" },
-    {},
-  ];
-  const octokit = new Octokit({
-    auth: "secret",
-    request: {
-      fetch: async (url: string, init?: RequestInit) => {
-        requests.push({
-          url,
-          method: init?.method,
-          body: typeof init?.body === "string" ? init.body : undefined,
-        });
-        return Response.json(responses.shift());
-      },
-    },
-  });
-
-  await expect(
-    publishGitHubBranchFiles({
-      octokit,
-      repository: "acme/product",
-      base: "main",
-      branch: "sweat/grill/g1",
-      files: [
-        { path: "CONTEXT.md", content: "# Grill\n" },
-        { path: "docs/adr/0018.md", content: "# ADR\n" },
-      ],
-    }),
-  ).resolves.toEqual({ branch: "sweat/grill/g1", sha: "commit" });
-
-  expect(
-    requests.map(({ url, method }) => [
-      method ?? "GET",
-      url.replace("https://api.github.com/repos/acme/product/", ""),
-    ]),
-  ).toEqual([
-    ["GET", "git/ref/heads%2Fmain"],
-    ["GET", "git/commits/base-commit"],
-    ["POST", "git/blobs"],
-    ["POST", "git/blobs"],
-    ["POST", "git/trees"],
-    ["POST", "git/commits"],
-    ["POST", "git/refs"],
-  ]);
-  expect(JSON.parse(requests[6]!.body!)).toEqual({
-    ref: "refs/heads/sweat/grill/g1",
-    sha: "commit",
-  });
-});
-
 function readGateway(fetch: (url: string) => Promise<Response>) {
   return createGitHubMcpGateway({
     octokit: new Octokit({ auth: "secret", request: { fetch } }),
