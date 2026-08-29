@@ -29,8 +29,8 @@ unset, the avatar uses a color derived from the username.
 _Avoid_: Profile color, theme color
 
 **Account mention**: An exact `@username` reference in a room message that
-directs another account's attention to that room. Agent identifiers share the
-same visible `@` syntax but are not account mentions.
+directs another account's attention to that room. Agent slugs share the same
+visible `@` syntax but are not account mentions.
 _Avoid_: Notification, assignment
 
 **Attention**: A durable, account-directed reason to return to a Room or Room
@@ -93,9 +93,46 @@ _Avoid_: Room invitation, open registration
 sessions while retaining its profile and authored history.
 _Avoid_: Account deletion, member removal
 
+**Responsible Account**: The Account accountable for a run's consequential
+actions, taken from its direct dispatcher or inherited through an automatic or
+agent-created chain.
+_Avoid_: Agent creator, run owner, requested by
+
 **Workspace**: The customer-owned collaborative environment containing people,
 agent definitions, rooms, Chats, Bulletins, and their shared work history.
 _Avoid_: Community
+
+**Agent visibility**: The access scope of an Agent definition: Private limits
+discovery and invocation to its Agent creator, while Workspace makes both
+available throughout the workspace; invoking a Private agent in shared work
+still exposes its attribution and output there.
+_Avoid_: Public, hidden
+
+**Agent creator**: The Account responsible for an Agent definition's creation,
+directly or as the run's Responsible Account, and the only Account allowed to
+edit or archive it.
+_Avoid_: Owner, author
+
+**Agent slug**: An immutable, workspace-unique handle generated from an Agent
+definition's initial name and used for `@` mentions and durable references.
+_Avoid_: Agent name, mutable handle
+
+**Creating agent**: The optional Agent definition recorded as having created
+another Agent definition on behalf of the run's Responsible Account; it is
+provenance, not edit or archive authority.
+_Avoid_: Agent owner, parent agent
+
+**Agent duplication**: Creation of an independent Agent definition from an
+existing one, with the responsible Account becoming the new definition's
+Agent creator and any agent performing the duplication recorded as its
+Creating agent; the duplicate receives its own Agent slug.
+_Avoid_: Fork, clone
+
+**Archived Agent definition**: A retained Agent definition that cannot start
+new runs, pauses its active Schedules, and remains visible through existing
+Chats, Issue ownership, run history, and attribution while active run snapshots
+finish normally.
+_Avoid_: Deleted agent, disabled run
 
 **Bulletin**: A workspace-owned freeform markdown note with a position on the
 shared Bulletin board. It is not a unit of work and not scoped to a Room.
@@ -283,8 +320,8 @@ capability when configured.
 _Avoid_: linear.issues, task tools (ambiguous), generic task-management API,
 agent chat, agent messenger
 
-**System instructions**: The role-owned instructions supplied by an agent
-definition.
+**System instructions**: The Agent-definition-owned instructions supplied to
+its runs.
 _Avoid_: Task prompt
 
 **Skill**: A workspace-owned markdown instruction pack in the Agent Skills
@@ -317,6 +354,11 @@ _Avoid_: Plugin, user-defined integration, custom MCP catalog entry
 Connection to one agent definition. Links are not chosen when a run starts.
 Clearing a Connection's credentials also clears its links.
 _Avoid_: Connection attachment, capability grant, Skill attachment
+
+**GitHub access**: Agent-definition configuration that both prepares the
+workspace's single configured GitHub repository under `/work` and makes its
+scoped GitHub read and pull-request tools eligible for the run.
+_Avoid_: Connection link, GitHub credential, repository-only access
 
 **Postgres tools**: First-party agent tools for a workspace-configured Postgres
 database, granted as the Connection capability `postgres.sql`. Credentials stay
@@ -413,10 +455,27 @@ Run/job            -> what should it do now?
 Sandbox            -> where does it execute?
 ```
 
-An **agent definition** is one person in the workspace (for example
-`software-engineer` or `antboy`). It defines that person's system instructions,
-requested capabilities, **agent runtime kind**, explicit image, and
-execution limits. It does not hold provider credentials or choose run inputs.
+An **agent definition** represents one agent person (for example
+`software-engineer` or `antboy`). It has one immutable **Agent slug** and
+defines that person's system instructions, **Agent runtime kind**, explicit
+image, execution limits, **Agent visibility**, and one **Agent creator**. It
+does not hold provider credentials or choose run inputs.
+
+Creating an Agent definition accepts its name, description, **System
+instructions**, **Agent runtime kind**, **Agent visibility**, Connection links,
+and optional GitHub access. Colony assigns the trusted image and execution
+limits and resolves the workspace's model configuration and credentials when a
+run starts; creators cannot supply executable images or credentials.
+
+Any Account may create or duplicate an Agent definition. In v1, only a
+workspace administrator may attach or detach Connection links or enable or
+disable GitHub access; this authorization is separate from definition storage
+so a later workspace permission model can replace the administrator rule.
+
+Workspace setup seeds `software-engineer` and `antboy` as ordinary Agent
+definitions whose Agent creator is the first workspace administrator. Their
+existing Agent slugs are preserved, and they receive no permanent built-in
+editing or archival exception.
 
 **software-engineer**: The coding person. Runtime kind `cursor`, with GitHub
 and repository checkout among its capabilities when granted.
@@ -474,12 +533,13 @@ provider details, upstream provider credentials, or a Preview URL. Runtime API
 keys and the MCP session token are technical credentials; tool subprocesses
 must not inherit them.
 
-## Roles and capabilities
+## Agent access and capabilities
 
-Roles declare capabilities rather than relying on implicit host state. A
-software-engineer role may be allowed shell, Git, and GitHub tools, but a run
-prepares required repositories and other inputs before the role starts. Other
-roles may use uploaded artifacts, APIs, databases, or only a prompt.
+Every Agent definition is eligible for Colony Issue tools. Room tools are
+eligible only for Room-linked runs. These Colony-native tools are platform
+behavior rather than creator-selected configuration. Agent definitions may
+instead carry Connection links and optional GitHub access; each run still
+resolves a narrow grant from that configuration and its context.
 
 `/work` is a runtime convention, not a repository convention: a run may
 prepare a repository, files, or nothing there.
@@ -558,12 +618,12 @@ Capability grant -> run-scoped allowed actions and resource scope
 MCP session      -> short-lived technical access created from the grant
 ```
 
-Core capabilities (for example `workspace.room`, `workspace.issues`,
-`github.pull-requests`) are requested on the agent role. Connection
-capabilities (for example `asana.tasks`, `postgres.sql`) are eligible only when that Connection
-is Configured and linked to the agent definition. When a run is created, the
-platform resolves role requests, Connection links, and task context into a
-narrow, expiring grant.
+Colony-native capabilities are eligible according to run context. Connection
+capabilities (for example `asana.tasks`, `postgres.sql`) are eligible only when
+that Connection is Configured and linked to the agent definition. GitHub is
+eligible only when the definition has GitHub access. When a run is created,
+the platform resolves those sources and task context into a narrow, expiring
+grant.
 
 At sandbox spawn, the orchestrator creates an MCP session from that grant and
 provides the generic runtime with the gateway endpoint and a short-lived run
