@@ -32,6 +32,11 @@ const SchedulesPage = lazy(() =>
     default: module.SchedulesPage,
   })),
 )
+const AgentsPage = lazy(() =>
+  import('#/features/agents/agents-page').then((module) => ({
+    default: module.AgentsPage,
+  })),
+)
 const VmsPage = lazy(() =>
   import('#/features/vms/vms-page').then((module) => ({
     default: module.VmsPage,
@@ -90,6 +95,7 @@ export function DashboardPages({
         </div>
       )}
       {view === 'schedules' && <SchedulesPage onOpenMachine={onOpenMachine} />}
+      {view === 'agents' && <AgentsPage user={user} />}
       {view === 'issues' && (
         <IssuesPage
           createOpen={issueCreate.open}

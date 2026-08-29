@@ -174,6 +174,9 @@ export function createIssueRunner(options: {
     return options.control.start(task, {
       issueId: issue.id,
       agentDefinitionId,
+      ...(issue.createdBy?.kind === 'account'
+        ? { responsibleAccountId: issue.createdBy.id }
+        : {}),
       ...(repositoryBase ? { repositoryBase } : {}),
       ...(mergeRevisions.length ? { mergeRevisions } : {}),
       onCreate: (summary) => {

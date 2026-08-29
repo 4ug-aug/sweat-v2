@@ -21,7 +21,7 @@ import { json, readBody } from '#/server/http/respond'
 export function createSchedulesHttp(deps: {
   scheduleStore: ScheduleStore
   scheduleRunner?: ScheduleRunner
-  agentDefinitions: () => AgentDefinitionSummary[]
+  agentDefinitions: (viewerAccountId: string) => AgentDefinitionSummary[]
   broadcastWorkspace: (message: WorkspaceServerMessage) => void
   liveRun?: (id: string) => RunSummary | undefined
 }): (
@@ -29,10 +29,14 @@ export function createSchedulesHttp(deps: {
   url: URL,
   user: RoomUser,
 ) => Promise<Response | undefined> {
-  const knownAgent = (id: unknown): id is string =>
+  const knownAgent = (id: unknown, viewerAccountId: string): id is string =>
     typeof id === 'string' &&
-    deps.agentDefinitions().some((agent) => agent.id === id)
-  const scheduleInput = (body: Record<string, unknown>, now: number) => {
+    deps.agentDefinitions(viewerAccountId).some((agent) => agent.id === id)
+  const scheduleInput = (
+    body: Record<string, unknown>,
+    now: number,
+    viewerAccountId: string,
+  ) => {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     const task = typeof body.task === 'string' ? body.task.trim() : ''
     const agentDefinitionId = body.agentDefinitionId
@@ -44,7 +48,7 @@ export function createSchedulesHttp(deps: {
       typeof body.timezone === 'string' ? body.timezone.trim() : ''
     if (!name || name.length > 50 || !task || task.length > 10_000)
       throw new Error('Invalid schedule name or task')
-    if (!knownAgent(agentDefinitionId))
+    if (!knownAgent(agentDefinitionId, viewerAccountId))
       throw new Error('Unknown agent definition')
     const preview = previewCron(cronExpression, timezone, now)
     return {
@@ -72,7 +76,7 @@ export function createSchedulesHttp(deps: {
       const body = await readBody(request)
       if (!body) return json({ error: 'Invalid schedule' }, 400)
       try {
-        const input = scheduleInput(body, Date.now())
+        const input = scheduleInput(body, Date.now(), user.id)
         const schedule = deps.scheduleStore.createSchedule({
           id: crypto.randomUUID(),
           ...input,
@@ -145,7 +149,7 @@ export function createSchedulesHttp(deps: {
           throw new Error('Invalid schedule task')
         if (
           body.agentDefinitionId !== undefined &&
-          !knownAgent(body.agentDefinitionId)
+          !knownAgent(body.agentDefinitionId, user.id)
         )
           throw new Error('Unknown agent definition')
         if (

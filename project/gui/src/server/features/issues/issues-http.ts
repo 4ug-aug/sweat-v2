@@ -29,7 +29,7 @@ import { matchRoute, type Route } from '#/server/http/router'
 export function createIssuesHttp(deps: {
   issueStore: IssueStore
   issueRunner?: IssueRunner
-  agentDefinitions: () => AgentDefinitionSummary[]
+  agentDefinitions: (viewerAccountId: string) => AgentDefinitionSummary[]
   listWorkspaceUsers: () => RoomUser[]
   broadcastWorkspace: (message: WorkspaceServerMessage) => void
   liveRun?: (id: string) => RunSummary | undefined
@@ -38,9 +38,9 @@ export function createIssuesHttp(deps: {
   url: URL,
   user: RoomUser,
 ) => Promise<Response | undefined> {
-  const knownAgent = (id: unknown): id is string =>
+  const knownAgent = (id: unknown, viewerAccountId: string): id is string =>
     typeof id === 'string' &&
-    deps.agentDefinitions().some((agent) => agent.id === id)
+    deps.agentDefinitions(viewerAccountId).some((agent) => agent.id === id)
   const knownAccount = (id: string): boolean =>
     deps.listWorkspaceUsers().some((user) => user.id === id)
   const decodeRef = (raw: string): string | undefined => {
@@ -52,8 +52,9 @@ export function createIssuesHttp(deps: {
   }
   const requireOwner = (
     owner: IssueOwner | undefined,
+    viewerAccountId: string,
   ): Response | undefined => {
-    if (owner?.kind === 'agent' && !knownAgent(owner.id))
+    if (owner?.kind === 'agent' && !knownAgent(owner.id, viewerAccountId))
       return json({ error: 'Unknown agent definition' }, 400)
     if (owner?.kind === 'account' && !knownAccount(owner.id))
       return json({ error: 'Unknown account' }, 400)
@@ -80,7 +81,7 @@ export function createIssuesHttp(deps: {
     try {
       const parsed = parseIssueCreate(body)
       if ('error' in parsed) return json({ error: parsed.error }, 400)
-      const ownerError = requireOwner(parsed.owner)
+      const ownerError = requireOwner(parsed.owner, user.id)
       if (ownerError) return ownerError
       const issue = deps.issueStore.createIssue({
         id: crypto.randomUUID(),
@@ -123,7 +124,7 @@ export function createIssuesHttp(deps: {
     }
   }
 
-  const routes: Route[] = [
+  const routesFor = (user: RoomUser): Route[] => [
     {
       method: 'GET',
       path: '/api/issues',
@@ -209,7 +210,7 @@ export function createIssuesHttp(deps: {
         const owner =
           body.owner === undefined ? false : parseOwner(body.owner)
         if (owner === false) return json({ error: 'Invalid owner' }, 400)
-        const ownerError = requireOwner(owner)
+        const ownerError = requireOwner(owner, user.id)
         if (ownerError) return ownerError
         if (!deps.issueRunner)
           return json({ error: 'Issue runs unavailable' }, 503)
@@ -267,7 +268,8 @@ export function createIssuesHttp(deps: {
               : undefined
         if (
           body.agentDefinitionId !== undefined &&
-          (agentDefinitionId === undefined || !knownAgent(agentDefinitionId))
+          (agentDefinitionId === undefined ||
+            !knownAgent(agentDefinitionId, user.id))
         )
           return json({ error: 'Unknown agent definition' }, 400)
         try {
@@ -337,7 +339,7 @@ export function createIssuesHttp(deps: {
           path: '/api/issues',
           handle: (request) => createIssue(request, user),
         },
-        ...routes,
+          ...routesFor(user),
       ],
       request.method,
       url.pathname,

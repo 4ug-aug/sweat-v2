@@ -7,6 +7,11 @@ export type AgentDefinition = {
   kind?: 'cursor' | 'openai-agents'
   icon: string
   includeRepository: boolean
+  visibility?: 'private' | 'workspace'
+  creatorAccountId?: string
+  creatingAgentId?: string
+  archivedAt?: number
+  instructions?: string
   capabilities: { id: string; name: string; tools: string[] }[]
   skills: { id: string; name: string; description: string }[]
 }

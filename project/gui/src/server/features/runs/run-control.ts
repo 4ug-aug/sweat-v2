@@ -62,17 +62,20 @@ export type RunStartContext<Output> =
       /** Set only for a reply mention: scopes workspace.read_messages to this thread root instead of the flat Room. */
       threadReadRootId?: string
       agentDefinitionId?: string
+      responsibleAccountId?: string
       attachments?: readonly AttachmentInput[]
       onCreate: (run: RunSummary) => NonNullable<Output>
     }
   | {
       scheduleId: string
       agentDefinitionId?: string
+      responsibleAccountId?: string
       onCreate: (run: RunSummary) => NonNullable<Output>
     }
   | {
       issueId: string
       agentDefinitionId?: string
+      responsibleAccountId?: string
       repositoryBase?: string
       mergeRevisions?: string[]
       onCreate: (run: RunSummary) => NonNullable<Output>
@@ -80,12 +83,14 @@ export type RunStartContext<Output> =
   | {
       oneshotId: string
       agentDefinitionId?: string
+      responsibleAccountId?: string
       repositoryBase?: string
       onCreate: (run: RunSummary) => NonNullable<Output>
     }
   | {
       chatId: string
       agentDefinitionId?: string
+      responsibleAccountId?: string
       warm?: boolean
       idleTtlMs?: number
       onCreate: (run: RunSummary) => NonNullable<Output>
@@ -172,30 +177,36 @@ function grantContextFrom<Output>(
   context: RunStartContext<Output>,
   agentDefinitionId: string,
 ): AgentGrantContext {
+  const responsible = context.responsibleAccountId
+    ? { responsibleAccountId: context.responsibleAccountId }
+    : {}
   if ('roomId' in context)
     return {
       roomId: context.roomId,
       agentDefinitionId,
+      ...responsible,
       ...(context.rootId ? { rootId: context.rootId } : {}),
       ...(context.threadReadRootId
         ? { threadReadRootId: context.threadReadRootId }
         : {}),
     }
   if ('scheduleId' in context)
-    return { scheduleId: context.scheduleId, agentDefinitionId }
+    return { scheduleId: context.scheduleId, agentDefinitionId, ...responsible }
   if ('oneshotId' in context)
     return {
       oneshotId: context.oneshotId,
       agentDefinitionId,
+      ...responsible,
       ...(context.repositoryBase
         ? { repositoryBase: context.repositoryBase }
         : {}),
     }
   if ('chatId' in context)
-    return { chatId: context.chatId, agentDefinitionId }
+    return { chatId: context.chatId, agentDefinitionId, ...responsible }
   return {
     issueId: context.issueId,
     agentDefinitionId,
+    ...responsible,
     ...(context.repositoryBase
       ? { repositoryBase: context.repositoryBase }
       : {}),

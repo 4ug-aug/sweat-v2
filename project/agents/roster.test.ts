@@ -814,3 +814,155 @@ test("selectTools narrows session tools and keeps the stored grant", async () =>
   expect(run.capabilityGrant?.tools).toEqual(githubTools);
   expect(run.preparation).toContain("Tools narrowed to 1 of 5");
 });
+
+test("GitHub access on the person record controls repository checkout", async () => {
+  const adapter: WorkspaceAgentAdapter = {
+    repository: {
+      input: {
+        type: "repository",
+        provider: "github",
+        repository: "acme/widgets",
+        revision: "main",
+      },
+      source: {
+        provider: "github",
+        async checkout(_input, directory) {
+          await writeFile(`${directory}/README.md`, "widgets");
+          return { revision: "abc123" };
+        },
+      },
+    },
+  };
+  const executor = createWorkspaceAgentsExecutor({
+    cursor: cursorConfig,
+    model: modelConfig,
+    adapters: [adapter],
+    getPerson: (id) =>
+      id === "reviewer"
+        ? {
+            id,
+            kind: "cursor",
+            instructions: "Review.",
+            githubAccess: false,
+          }
+        : undefined,
+    sandboxProvider: createAppleContainerSandboxProvider({
+      container: createAppleContainerClient({
+        async run(args, options): Promise<CommandResult> {
+          const stdout =
+            args[0] === "exec"
+              ? `${JSON.stringify({ kind: "message", text: "done", at: 1 })}\n`
+              : "";
+          if (stdout) options?.onOutput?.({ stream: "stdout", text: stdout });
+          return { args, exitCode: 0, stdout, stderr: "" };
+        },
+      }),
+      createId: () => "run-no-github",
+    }),
+  });
+  const id = executor.startRun({
+    task: "summarize the room",
+    agentDefinitionId: "reviewer",
+  });
+  while (["preparing", "running"].includes(executor.getRun(id)?.state ?? "")) {
+    await Bun.sleep(0);
+  }
+  expect(executor.getRun(id)?.inputs).toEqual([]);
+});
+
+test("archived definitions cannot start new runs", () => {
+  const executor = createWorkspaceAgentsExecutor({
+    cursor: cursorConfig,
+    model: modelConfig,
+    getPerson: (id) =>
+      id === SOFTWARE_ENGINEER_ID
+        ? {
+            id,
+            kind: "cursor",
+            instructions: "Build.",
+            githubAccess: true,
+            archived: true,
+          }
+        : undefined,
+    sandboxProvider: {
+      create: async () => ({
+        id: "unused",
+        exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+        dispose: async () => {},
+      }),
+    },
+  });
+  expect(() =>
+    executor.startRun({
+      task: "work",
+      agentDefinitionId: SOFTWARE_ENGINEER_ID,
+    }),
+  ).toThrow("Archived agent definition");
+});
+
+test("Private definitions can only start for their Agent creator", () => {
+  const executor = createWorkspaceAgentsExecutor({
+    model: modelConfig,
+    getPerson: (id) =>
+      id === "secret"
+        ? {
+            id,
+            kind: "openai-agents",
+            instructions: "Shh.",
+            githubAccess: false,
+            visibility: "private",
+            creatorAccountId: "ada",
+          }
+        : undefined,
+    sandboxProvider: {
+      create: async () => ({
+        id: "unused",
+        exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+        dispose: async () => {},
+      }),
+    },
+  });
+  expect(() =>
+    executor.startRun({ task: "work", agentDefinitionId: "secret" }),
+  ).toThrow("Unknown agent definition: secret");
+  expect(() =>
+    executor.startRun({
+      task: "work",
+      agentDefinitionId: "secret",
+      grantContext: { responsibleAccountId: "bob" },
+    }),
+  ).toThrow("Unknown agent definition: secret");
+  expect(
+    typeof executor.startRun({
+      task: "work",
+      agentDefinitionId: "secret",
+      grantContext: { responsibleAccountId: "ada" },
+    }),
+  ).toBe("string");
+});
+
+test("run snapshots keep the resolved instructions after the definition changes", () => {
+  const person = {
+    id: ANTBOY_ID,
+    kind: "openai-agents" as const,
+    instructions: "Stay original.",
+    githubAccess: false,
+  };
+  const executor = createWorkspaceAgentsExecutor({
+    model: modelConfig,
+    getPerson: (id) => (id === ANTBOY_ID ? person : undefined),
+    sandboxProvider: {
+      create: async () => ({
+        id: "unused",
+        exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+        dispose: async () => {},
+      }),
+    },
+  });
+  const id = executor.startRun({
+    task: "work",
+    agentDefinitionId: ANTBOY_ID,
+  });
+  person.instructions = "Changed after start.";
+  expect(executor.getRun(id)?.definition.instructions).toBe("Stay original.");
+});

@@ -147,6 +147,8 @@ export function createRoomsHttp(deps: {
   attachmentsDirectory: string
   historyPageSize: number
   agentReady?: (agentDefinitionId?: string) => boolean
+  mentionPattern?: () => RegExp
+  lookupPerson?: (id: string) => { kind: 'cursor' | 'openai-agents' } | undefined
   roomsFor: (userId: string) => WorkspaceRoom[]
   broadcastWorkspace: (message: WorkspaceServerMessage) => void
   broadcastWorkspaceToUsers: (
@@ -319,7 +321,7 @@ export function createRoomsHttp(deps: {
       const input = await messageInputFrom(request)
       if ('error' in input) return json({ error: input.error }, 400)
       const { text, files, rootId } = input
-      const mention = rosterMentionPattern()
+      const mention = (deps.mentionPattern ?? rosterMentionPattern)()
       const mentionMatch = text.match(mention)
       const agentDefinitionId = mentionMatch?.[2]
       const isAgentMessage = Boolean(agentDefinitionId)
@@ -334,7 +336,9 @@ export function createRoomsHttp(deps: {
         deps.agentReady &&
         !deps.agentReady(agentDefinitionId)
       ) {
-        const person = rosterPerson(agentDefinitionId)
+        const person =
+          deps.lookupPerson?.(agentDefinitionId) ??
+          rosterPerson(agentDefinitionId)
         return json(
           {
             error: person
@@ -400,6 +404,7 @@ export function createRoomsHttp(deps: {
             byteSize: attachment.byteSize,
             sha256: attachment.sha256,
           })),
+          responsibleAccountId: user.id,
           onCreate: (source) => {
             const run: RoomRun = {
               ...source,

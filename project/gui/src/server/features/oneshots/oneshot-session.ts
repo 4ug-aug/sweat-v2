@@ -86,6 +86,7 @@ export function createOneshotSession(options: {
         return options.control.start(input.task.trim(), {
           oneshotId,
           agentDefinitionId: input.agentDefinitionId,
+          responsibleAccountId: input.accountId,
           ...(repositoryBase ? { repositoryBase } : {}),
           onCreate: (summary) => {
             if (activeForAccount(input.accountId))

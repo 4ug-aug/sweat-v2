@@ -20,6 +20,7 @@ export type ChatLinkedRuns = {
     chatId: string
     task: string
     agentDefinitionId: string
+    responsibleAccountId?: string
   }): RunSummary
   followUp(chatId: string, task: string): Promise<RunSummary | undefined>
   dispose(chatId: string): Promise<void>
@@ -36,6 +37,7 @@ export function createChatLinkedRuns(deps: {
     task: string
     agentDefinitionId: string
     idleTtlMs: number
+    responsibleAccountId?: string
     onCreate: (run: RunSummary) => RunSummary
   }) => RunSummary
   followUp: (runId: string, task: string) => Promise<RunSummary | undefined>
@@ -134,7 +136,7 @@ export function createChatLinkedRuns(deps: {
   })
 
   return {
-    start: ({ chatId, task, agentDefinitionId }) => {
+    start: ({ chatId, task, agentDefinitionId, responsibleAccountId }) => {
       const existing = byChat.get(chatId)
       if (existing) void deps.cancel(existing)
       followUpInFlight.delete(chatId)
@@ -145,6 +147,7 @@ export function createChatLinkedRuns(deps: {
         task,
         agentDefinitionId,
         idleTtlMs: DEFAULT_WARM_IDLE_TTL_MS,
+        ...(responsibleAccountId ? { responsibleAccountId } : {}),
         onCreate: (summary) => {
           remember(chatId, summary.id)
           return summary

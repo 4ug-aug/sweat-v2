@@ -20,6 +20,9 @@ import {
 } from './features/accounts/admission-http'
 import { mentionedAccounts } from './features/rooms/attention'
 import { rosterDefinitionSummaries } from '#project/agents/roster'
+import { summaryFromPerson } from '#project/agents/roster-meta'
+import { createAgentDefinitionsHttp } from './features/agents/agent-definitions-http'
+import type { AgentDefinitionStore } from './features/agents/agent-definition-store'
 import { attachmentDirectory } from './features/rooms/attachments'
 import { type ScheduleStore } from './features/schedules/schedule-store'
 import {
@@ -292,7 +295,8 @@ export function createCoordinator(options: {
     ) => { issue: Issue; run?: IssueRun }
     maybeStartForOwner: (issueId: string) => { issue: Issue; run?: IssueRun }
   }
-  agentDefinitions?: () => AgentDefinitionSummary[]
+  agentDefinitions?: (viewerAccountId: string) => AgentDefinitionSummary[]
+  agentDefinitionStore?: AgentDefinitionStore
   vmControl?: SmolvmMachineControl
 }) {
   const attachmentsDirectory =
@@ -332,8 +336,8 @@ export function createCoordinator(options: {
       }
     })
   }
-  const agentDefinitions = (): AgentDefinitionSummary[] =>
-    options.agentDefinitions?.() ?? rosterDefinitionSummaries()
+  const agentDefinitions = (viewerAccountId: string): AgentDefinitionSummary[] =>
+    options.agentDefinitions?.(viewerAccountId) ?? rosterDefinitionSummaries()
   const publish = (topic: string, message: ServerMessage): void => {
     server.publish(topic, JSON.stringify(message))
   }
@@ -574,6 +578,7 @@ export function createCoordinator(options: {
     for (const account of mentionedAccounts(
       event.message.text,
       options.store.listMentionableAccounts(event.message.roomId),
+      options.agentDefinitionStore?.mentionHandles(),
     )) {
       if (
         event.message.author.kind === 'user' &&
@@ -668,6 +673,7 @@ export function createCoordinator(options: {
           task,
           agentDefinitionId,
           idleTtlMs,
+          responsibleAccountId,
           onCreate,
         }) =>
           options.control.start(task, {
@@ -675,6 +681,7 @@ export function createCoordinator(options: {
             agentDefinitionId,
             warm: true,
             idleTtlMs,
+            ...(responsibleAccountId ? { responsibleAccountId } : {}),
             onCreate,
           }),
         followUp: (runId, task) => options.control.followUp(runId, task),
@@ -699,6 +706,28 @@ export function createCoordinator(options: {
         },
       })
     : undefined
+  const agentDefinitionsHttp = options.agentDefinitionStore
+    ? createAgentDefinitionsHttp({
+        store: options.agentDefinitionStore,
+        toSummary: (record) =>
+          summaryFromPerson({
+            id: record.id,
+            name: record.name,
+            description: record.description,
+            kind: record.kind,
+            githubAccess: record.githubAccess,
+            visibility: record.visibility,
+            creatorAccountId: record.creatorAccountId,
+            creatingAgentId: record.creatingAgentId,
+            archivedAt: record.archivedAt,
+            instructions: record.instructions,
+          }),
+        list: agentDefinitions,
+        pauseSchedules: options.scheduleStore
+          ? (id, at) => options.scheduleStore!.pauseActiveForAgent(id, at)
+          : undefined,
+      })
+    : undefined
   const chatsHttp =
     options.chatStore && chatLinkedRuns
       ? createChatsHttp({
@@ -714,6 +743,12 @@ export function createCoordinator(options: {
     attachmentsDirectory,
     historyPageSize: roomHistoryPageSize,
     agentReady: options.agentReady,
+    mentionPattern: options.agentDefinitionStore
+      ? () => options.agentDefinitionStore!.mentionPattern()
+      : undefined,
+    lookupPerson: options.agentDefinitionStore
+      ? (id) => options.agentDefinitionStore!.get(id)
+      : undefined,
     roomsFor,
     broadcastWorkspace,
     broadcastWorkspaceToUsers,
@@ -789,9 +824,12 @@ export function createCoordinator(options: {
       if (!user) return cors(json({ error: 'Unauthorized' }, 401))
       if (url.pathname === '/api/realtime-ticket' && request.method === 'GET')
         return cors(json({ ticket: mintRealtimeTicket(user.id) }))
-      if (url.pathname === '/api/agent-definitions' && request.method === 'GET')
-        return cors(json({ agents: agentDefinitions() }))
       const handled =
+        (agentDefinitionsHttp
+          ? await agentDefinitionsHttp(request, url, user)
+          : url.pathname === '/api/agent-definitions' && request.method === 'GET'
+            ? json({ agents: agentDefinitions(user.id) })
+            : undefined) ??
         (vmsHttp ? await vmsHttp(request, url, user) : undefined) ??
         (schedulesHttp ? await schedulesHttp(request, url, user) : undefined) ??
         (issuesHttp ? await issuesHttp(request, url, user) : undefined) ??

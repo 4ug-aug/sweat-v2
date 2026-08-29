@@ -8,15 +8,15 @@ import {
 
 export function createOneshotsHttp(deps: {
   oneshotSession: OneshotSession
-  agentDefinitions: () => AgentDefinitionSummary[]
+  agentDefinitions: (viewerAccountId: string) => AgentDefinitionSummary[]
 }): (
   request: Request,
   url: URL,
   user: RoomUser,
 ) => Promise<Response | undefined> {
-  const knownAgent = (id: unknown): id is string =>
+  const knownAgent = (id: unknown, viewerId: string): id is string =>
     typeof id === 'string' &&
-    deps.agentDefinitions().some((agent) => agent.id === id)
+    deps.agentDefinitions(viewerId).some((agent) => agent.id === id)
 
   return async (request, url, user) => {
     if (url.pathname === '/api/oneshots/active' && request.method === 'GET')
@@ -41,10 +41,10 @@ export function createOneshotsHttp(deps: {
           ? repositoryBaseRaw.trim()
           : undefined
       if (!task) return json({ error: 'Task is required' }, 400)
-      if (!knownAgent(agentDefinitionId))
+      if (!knownAgent(agentDefinitionId, user.id))
         return json({ error: 'Unknown agent definition' }, 400)
       const agent = deps
-        .agentDefinitions()
+        .agentDefinitions(user.id)
         .find((definition) => definition.id === agentDefinitionId)
       if (repositoryBase && !agent!.includeRepository)
         return json(

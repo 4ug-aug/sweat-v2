@@ -15,15 +15,15 @@ const maxTextLength = 20_000
 export function createChatsHttp(deps: {
   chatStore: ChatStore
   linkedRuns: ChatLinkedRuns
-  agentDefinitions: () => AgentDefinitionSummary[]
+  agentDefinitions: (viewerAccountId: string) => AgentDefinitionSummary[]
 }): (
   request: Request,
   url: URL,
   user: RoomUser,
 ) => Promise<Response | undefined> {
-  const knownAgent = (id: unknown): id is string =>
+  const knownAgent = (id: unknown, viewerAccountId: string): id is string =>
     typeof id === 'string' &&
-    deps.agentDefinitions().some((agent) => agent.id === id)
+    deps.agentDefinitions(viewerAccountId).some((agent) => agent.id === id)
 
   const owned = (id: string, userId: string) =>
     deps.chatStore.getForAccount(id, userId)
@@ -46,7 +46,7 @@ export function createChatsHttp(deps: {
     if (url.pathname === '/api/chats' && request.method === 'POST') {
       const body = await readBody(request)
       const agentDefinitionId = body?.agentDefinitionId
-      if (!knownAgent(agentDefinitionId))
+      if (!knownAgent(agentDefinitionId, user.id))
         return json({ error: 'Unknown agent definition' }, 400)
       const chat = deps.chatStore.create({
         id: crypto.randomUUID(),
@@ -88,6 +88,7 @@ export function createChatsHttp(deps: {
           chatId,
           task: chatFollowUpTask(prior, text),
           agentDefinitionId: chat.agentDefinitionId,
+          responsibleAccountId: user.id,
         })
       return json({ chat: owned(chatId, user.id), message }, 202)
     }

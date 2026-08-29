@@ -21,7 +21,6 @@ import {
   type WorkspaceInput,
 } from "../inputs/repository";
 import { createRoutingAgentRuntime } from "../providers/routing-agent-runtime";
-import type { AgentRole } from "../roles/role";
 import { instructionsForInvocation } from "../roles/invocation";
 import type { OpenAICompatibleModel } from "../runtime/openai-agents";
 import { createCapabilitySessionFactory } from "../mcp/session";
@@ -31,9 +30,10 @@ import {
   type McpUpstream,
 } from "../mcp/gateway";
 import type { Sandbox, SandboxProvider } from "../sandboxes";
+import { requestedCapabilitiesFor } from "./platform-capabilities";
+import { SEEDED_AGENT_DEFINITIONS } from "./seed-definitions";
 import {
   SOFTWARE_ENGINEER_ID,
-  WORKSPACE_ROSTER,
   capabilityToolLabel,
   rosterNotConfiguredMessage,
 } from "./roster-meta";
@@ -89,9 +89,32 @@ export type WorkspaceAgentExecutor = Omit<
   startRun(request: WorkspaceAgentStartRunRequest): string;
 };
 
-function personCapabilities(role: AgentRole): Map<string, readonly string[]> {
+export type WorkspacePersonRecord = {
+  id: string;
+  kind: AgentRuntimeKind;
+  instructions: string;
+  githubAccess: boolean;
+  archived?: boolean;
+  visibility?: "private" | "workspace";
+  creatorAccountId?: string;
+};
+
+export function seededPerson(id: string): WorkspacePersonRecord | undefined {
+  const seed = SEEDED_AGENT_DEFINITIONS.find((person) => person.id === id);
+  if (!seed) return undefined;
+  return {
+    id: seed.id,
+    kind: seed.kind,
+    instructions: seed.instructions,
+    githubAccess: seed.githubAccess,
+  };
+}
+
+function personCapabilities(
+  githubAccess: boolean,
+): Map<string, readonly string[]> {
   return new Map(
-    role.requestedCapabilities.map((capability) => [
+    requestedCapabilitiesFor(githubAccess).map((capability) => [
       capability.id,
       capability.tools,
     ]),
@@ -127,6 +150,7 @@ export function createWorkspaceAgentsExecutor(options: {
   skillSource?: SkillSource;
   /** Host-side grant narrowing. Must not use a sandbox or tools. */
   selectTools?: SelectGrantedTools;
+  getPerson?: (id: string) => WorkspacePersonRecord | undefined;
 }): WorkspaceAgentExecutor {
   const adapters = options.adapters ?? [];
   const repositories = adapters.flatMap((adapter) =>
@@ -139,6 +163,7 @@ export function createWorkspaceAgentsExecutor(options: {
     adapter.capability ? [adapter.capability] : [],
   );
   type CapabilityAdapter = NonNullable<WorkspaceAgentAdapter["capability"]>;
+  const getPerson = options.getPerson ?? seededPerson;
 
   const openaiImage =
     options.image ?? Bun.env.SWEAT_AGENT_IMAGE ?? "sweat-agent:latest";
@@ -152,31 +177,12 @@ export function createWorkspaceAgentsExecutor(options: {
     "openai-agents": openaiImage,
   };
 
-  const byId = new Map(
-    WORKSPACE_ROSTER.map((person) => [person.id, person] as const),
-  );
-  const allRequested = new Map(
-    WORKSPACE_ROSTER.map((person) => [
-      person.id,
-      personCapabilities(person.role),
-    ] as const),
-  );
-  const unionRequested = new Map<string, readonly string[]>();
-  for (const requested of allRequested.values()) {
-    for (const [id, tools] of requested) {
-      if (!unionRequested.has(id)) unionRequested.set(id, tools);
-    }
-  }
-
   const capabilityIds = new Set<string>();
   capabilityAdapters.forEach((adapter) => {
     if (capabilityIds.has(adapter.id)) {
       throw new Error(`Duplicate workspace agent capability adapter: ${adapter.id}`);
     }
     capabilityIds.add(adapter.id);
-    if (!unionRequested.has(adapter.id)) {
-      throw new Error(`No roster person requested capability: ${adapter.id}`);
-    }
   });
   for (const capability of capabilityAdapters) {
     for (const resource of capability.resources ?? []) {
@@ -205,11 +211,19 @@ export function createWorkspaceAgentsExecutor(options: {
       adapter.capability ? [adapter.capability] : [],
     );
 
+  const requestedFor = (
+    agentDefinitionId: string,
+  ): Map<string, readonly string[]> | undefined => {
+    const person = getPerson(agentDefinitionId);
+    if (!person) return undefined;
+    return personCapabilities(person.githubAccess);
+  };
+
   const eligibleAdapters = (
     agentDefinitionId: string,
     grantContext: AgentGrantContext | undefined,
   ): CapabilityAdapter[] => {
-    const requested = allRequested.get(agentDefinitionId);
+    const requested = requestedFor(agentDefinitionId);
     if (!requested) return [];
     const fromRole = capabilityAdapters.filter((adapter) => {
       if (!requested.has(adapter.id)) return false;
@@ -263,8 +277,8 @@ export function createWorkspaceAgentsExecutor(options: {
   const executor = createRunExecutor<WorkspaceInput>({
     definitions: {
       resolve(id, grantContext) {
-        const person = byId.get(id);
-        if (!person) return undefined;
+        const person = getPerson(id);
+        if (!person || person.archived) return undefined;
         const image = imagesByKind[person.kind];
         const linkedCapabilities = connectionCapabilityAdapters(id).map(
           (adapter) => ({
@@ -273,7 +287,7 @@ export function createWorkspaceAgentsExecutor(options: {
           }),
         );
         const requestedCapabilities = [
-          ...person.role.requestedCapabilities,
+          ...requestedCapabilitiesFor(person.githubAccess),
           ...linkedCapabilities,
         ];
         if (person.kind === "cursor") {
@@ -281,7 +295,7 @@ export function createWorkspaceAgentsExecutor(options: {
           return {
             id: person.id,
             instructions: instructionsForInvocation(
-              person.role.instructions,
+              person.instructions,
               grantContext,
             ),
             requestedCapabilities,
@@ -297,7 +311,7 @@ export function createWorkspaceAgentsExecutor(options: {
         return {
           id: person.id,
           instructions: instructionsForInvocation(
-            person.role.instructions,
+            person.instructions,
             grantContext,
           ),
           requestedCapabilities,
@@ -319,7 +333,7 @@ export function createWorkspaceAgentsExecutor(options: {
             const agentDefinitionId =
               grantContext?.agentDefinitionId ?? SOFTWARE_ENGINEER_ID;
             const eligible = eligibleAdapters(agentDefinitionId, grantContext);
-            const requested = allRequested.get(agentDefinitionId);
+            const requested = requestedFor(agentDefinitionId);
             const bundles = Object.fromEntries(
               eligible.map((adapter) => [
                 adapter.id,
@@ -357,9 +371,12 @@ export function createWorkspaceAgentsExecutor(options: {
         agentDefinitionId = SOFTWARE_ENGINEER_ID,
         ...runRequest
       } = request;
-      const person = byId.get(agentDefinitionId);
+      const person = getPerson(agentDefinitionId);
       if (!person) {
         throw new Error(`Unknown agent definition: ${agentDefinitionId}`);
+      }
+      if (person.archived) {
+        throw new Error("Archived agent definition");
       }
       if (person.kind === "cursor" && !options.cursor) {
         throw new Error(rosterNotConfiguredMessage("cursor"));
@@ -372,9 +389,16 @@ export function createWorkspaceAgentsExecutor(options: {
         ...(runRequest.grantContext ?? {}),
         agentDefinitionId,
       };
+      if (
+        person.visibility === "private" &&
+        person.creatorAccountId &&
+        grantContext.responsibleAccountId !== person.creatorAccountId
+      ) {
+        throw new Error(`Unknown agent definition: ${agentDefinitionId}`);
+      }
       const eligible = eligibleAdapters(agentDefinitionId, grantContext);
 
-      const requested = allRequested.get(agentDefinitionId)!;
+      const requested = requestedFor(agentDefinitionId)!;
       const eligibleTools = eligible.flatMap(
         (adapter) => requested.get(adapter.id) ?? adapter.tools ?? [],
       );
@@ -386,7 +410,7 @@ export function createWorkspaceAgentsExecutor(options: {
             )
             .join("\n")}`
         : "";
-      const repoInputs = person.includeRepository
+      const repoInputs = person.githubAccess
         ? repositories.map((repository) => {
             const input = grantContext.repositoryBase
               ? {

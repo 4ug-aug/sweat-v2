@@ -31,6 +31,7 @@ import {
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { canManageAgentAccess } from '#/server/features/agents/agent-access'
 import { WORKSPACE_PEOPLE } from '#project/agents/roster-people'
 
 export type AccountInput = {
@@ -82,6 +83,9 @@ export type AdmissionOptions = {
   }
   skills?: WorkspaceSkillStore
   connections?: WorkspaceConnectionStore
+  agentMentionHandles?: () => ReadonlySet<string>
+  listAgents?: () => { id: string; name: string }[]
+  knownAgent?: (id: string) => boolean
 }
 
 export function invitationUrl(
@@ -120,6 +124,7 @@ const readBody = async (
 
 const accountFrom = (
   body: Record<string, unknown> | undefined,
+  agentMentionHandles: ReadonlySet<string> = AGENT_MENTION_HANDLES,
 ): AccountInput | undefined => {
   const email = body?.email
   const username = body?.username
@@ -134,7 +139,8 @@ const accountFrom = (
     !username.trim()
   )
     return undefined
-  if (AGENT_MENTION_HANDLES.has(username.trim().toLowerCase())) return undefined
+  if (agentMentionHandles.has(username.trim().toLowerCase()))
+    return undefined
   return {
     email: email.trim(),
     username: username.trim(),
@@ -160,12 +166,21 @@ export function createAdmissionHttpHandler(
     return user.role === 'admin' ? user : json({ error: 'Forbidden' }, 403)
   }
 
+  const agentHandles = () =>
+    options.agentMentionHandles?.() ?? AGENT_MENTION_HANDLES
+  const listedAgents = () =>
+    options.listAgents?.() ??
+    WORKSPACE_PEOPLE.map((person) => ({ id: person.id, name: person.name }))
+  const isKnownAgent = (id: string) =>
+    options.knownAgent?.(id) ??
+    WORKSPACE_PEOPLE.some((person) => person.id === id)
+
   return async (request: Request, url: URL): Promise<Response | undefined> => {
     if (url.pathname === '/api/admission/status' && request.method === 'GET')
       return json({ setupRequired: !options.store.hasUsers() })
 
     if (url.pathname === '/api/admission/setup' && request.method === 'POST') {
-      const account = accountFrom(await readBody(request))
+      const account = accountFrom(await readBody(request), agentHandles())
       const setupToken = request.headers.get('x-sweat-setup-token')
       if (!account || !setupToken || !options.store.claimSetupToken(setupToken))
         return json({ error: 'Invalid or already-used setup token' }, 400)
@@ -188,7 +203,7 @@ export function createAdmissionHttpHandler(
       /^\/api\/(?:admission|workspace)\/invitations\/([^/]+)\/redeem$/,
     )
     if (redemption && request.method === 'POST') {
-      const account = accountFrom(await readBody(request))
+      const account = accountFrom(await readBody(request), agentHandles())
       const claimed = account
         ? options.store.claimInvitation(redemption[1])
         : undefined
@@ -396,10 +411,7 @@ export function createAdmissionHttpHandler(
         return json({
           skills: options.skills.list(),
           attachments: options.skills.listAttachments(),
-          agents: WORKSPACE_PEOPLE.map((person) => ({
-            id: person.id,
-            name: person.name,
-          })),
+          agents: listedAgents(),
         })
       }
       if (request.method === 'POST') {
@@ -452,10 +464,7 @@ export function createAdmissionHttpHandler(
       if (request.method === 'GET') {
         return json({
           connections: options.connections.list(),
-          agents: WORKSPACE_PEOPLE.map((person) => ({
-            id: person.id,
-            name: person.name,
-          })),
+          agents: listedAgents(),
         })
       }
       if (request.method === 'PUT') {
@@ -526,6 +535,8 @@ export function createAdmissionHttpHandler(
     ) {
       const user = await administrator(request)
       if (user instanceof Response) return user
+      if (!canManageAgentAccess(user))
+        return json({ error: 'Forbidden' }, 403)
       const kind = decodeURIComponent(connectionLinks[1]!)
       const body = await readBody(request)
       const agentDefinitionIds = Array.isArray(body?.agentDefinitionIds)
@@ -536,7 +547,7 @@ export function createAdmissionHttpHandler(
       if (!agentDefinitionIds)
         return json({ error: 'agentDefinitionIds array is required' }, 400)
       for (const agentDefinitionId of agentDefinitionIds) {
-        if (!WORKSPACE_PEOPLE.some((person) => person.id === agentDefinitionId))
+        if (!isKnownAgent(agentDefinitionId))
           return json({ error: 'Unknown agent definition' }, 400)
       }
       try {
@@ -584,7 +595,7 @@ export function createAdmissionHttpHandler(
       const user = await administrator(request)
       if (user instanceof Response) return user
       const agentDefinitionId = decodeURIComponent(skillAttachments[1]!)
-      if (!WORKSPACE_PEOPLE.some((person) => person.id === agentDefinitionId)) {
+      if (!isKnownAgent(agentDefinitionId)) {
         return json({ error: 'Unknown agent definition' }, 400)
       }
       const body = await readBody(request)

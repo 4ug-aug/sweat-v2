@@ -98,6 +98,13 @@ export const capabilityPresentation: Record<
       "workspace.post_message": "Post messages",
     },
   },
+  "workspace.agents": {
+    name: "Agents",
+    tools: {
+      "workspace.create_agent": "Create agents",
+      "workspace.duplicate_agent": "Duplicate agents",
+    },
+  },
 };
 
 export function capabilityToolLabel(tool: string): string | undefined {

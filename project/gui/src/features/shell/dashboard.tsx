@@ -11,6 +11,7 @@ import { MachineSessionHeader } from '#/features/vms/components/machine-session'
 import { useStoredBoolean } from '#/hooks/use-stored-boolean'
 import { useWindowKeydown } from '#/hooks/use-window-keydown'
 import {
+  Bot,
   Box,
   CalendarClock,
   Hash,
@@ -235,6 +236,7 @@ export function Dashboard({
           if (user.role === 'admin') openView('workspace')
         }}
         onOpenSchedules={() => openView('schedules')}
+        onOpenAgents={() => openView('agents')}
         onOpenIssues={() => openView('issues')}
         onOpenBulletins={() => openView('bulletins')}
         onOpenChat={() => openView('chat')}
@@ -259,6 +261,8 @@ export function Dashboard({
                 <>
                   {view === 'schedules' ? (
                     <CalendarClock className="size-4 text-muted-foreground" />
+                  ) : view === 'agents' ? (
+                    <Bot className="size-4 text-muted-foreground" />
                   ) : view === 'vms' ? (
                     <Box className="size-4 text-muted-foreground" />
                   ) : room?.visibility === 'private' ? (
@@ -269,9 +273,11 @@ export function Dashboard({
                   <p className="font-semibold">
                     {view === 'schedules'
                       ? 'Schedules'
-                      : view === 'vms'
-                        ? 'Machines'
-                        : (room?.name ?? 'Rooms')}
+                      : view === 'agents'
+                        ? 'Agents'
+                        : view === 'vms'
+                          ? 'Machines'
+                          : (room?.name ?? 'Rooms')}
                   </p>
                   {view === 'room' && room?.visibility === 'private' && (
                     <MembersPanel

@@ -73,6 +73,7 @@ export interface ScheduleStore {
     now: number,
   ): Schedule
   listDueSchedules(now: number): Schedule[]
+  pauseActiveForAgent(agentDefinitionId: string, now: number): void
   createRun(run: NewScheduleRun, now: number): ScheduleRun | undefined
   recordStartFailure(input: {
     scheduleId: string
@@ -288,6 +289,13 @@ export function createSqliteScheduleStore(sqlite: Sqlite): ScheduleStore {
         "WHERE s.state = 'active' AND s.next_run_at IS NOT NULL AND s.next_run_at <= ?",
         now,
       ),
+    pauseActiveForAgent: (agentDefinitionId, now) => {
+      sqlite
+        .prepare(
+          `UPDATE schedule SET state = 'paused', updated_at = ? WHERE agent_definition_id = ? AND state = 'active'`,
+        )
+        .run(now, agentDefinitionId)
+    },
     createRun: (run, now) => {
       try {
         return transaction(sqlite, () => {

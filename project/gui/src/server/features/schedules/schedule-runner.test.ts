@@ -30,6 +30,7 @@ function makeStore(): ScheduleStore {
       current.nextRunAt !== undefined && current.nextRunAt <= now
         ? [current]
         : [],
+    pauseActiveForAgent: () => undefined,
     createRun: (run, now) => {
       if (
         [...runs.values()].some(

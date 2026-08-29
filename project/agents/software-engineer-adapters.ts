@@ -25,6 +25,10 @@ import {
   type AssignableOwner,
   type WorkspaceIssuesPort,
 } from "../mcp/workspace-issues";
+import {
+  createWorkspaceAgentsMcpUpstream,
+  type WorkspaceAgentsPort,
+} from "../mcp/workspace-agents";
 import { commandFailure } from "../sandboxes";
 import { STEP_TEXT_LIMIT } from "../runtime/step";
 import { rosterParticipant } from "./roster-meta";
@@ -85,6 +89,35 @@ export function createWorkspaceIssuesAdapter(options: {
           ...(options.listAssignableOwners
             ? { listAssignableOwners: options.listAssignableOwners }
             : {}),
+        });
+      },
+    },
+  };
+}
+
+export function createWorkspaceAgentsAdapter(options: {
+  port: WorkspaceAgentsPort;
+}): WorkspaceAgentAdapter {
+  return {
+    capability: {
+      id: "workspace.agents",
+      applies({ grantContext }) {
+        return Boolean(
+          grantContext?.responsibleAccountId && grantContext?.agentDefinitionId,
+        );
+      },
+      createUpstream({ grantContext }) {
+        const creatingAgentId = grantContext?.agentDefinitionId;
+        const responsibleAccountId = grantContext?.responsibleAccountId;
+        if (!creatingAgentId || !responsibleAccountId) {
+          throw new Error(
+            "A Responsible Account and Creating agent are required to create Agent definitions",
+          );
+        }
+        return createWorkspaceAgentsMcpUpstream({
+          port: options.port,
+          responsibleAccountId,
+          creatingAgentId,
         });
       },
     },

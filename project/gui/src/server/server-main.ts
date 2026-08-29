@@ -1,4 +1,4 @@
-import { rosterDefinitionSummaries, rosterPerson } from '#project/agents/roster'
+import { summaryFromPerson } from '#project/agents/roster'
 import { capabilityPresentation } from '#project/agents/roster-people'
 import { getConnectionKind } from '#project/connections/registry'
 import {
@@ -27,6 +27,7 @@ import { createRoomMessageHub } from './features/rooms/room-hub'
 import { createSqliteRoomStore } from './features/rooms/room-store'
 import { createRunControl } from './features/runs/run-control'
 import { createSqliteScheduleStore } from './features/schedules/schedule-store'
+import { createAgentDefinitionStore } from './features/agents/agent-definition-store'
 import { createWorkspaceConnections } from './features/workspace/workspace-connections'
 import {
   createWorkspaceSkillStore,
@@ -59,6 +60,7 @@ if (import.meta.main) {
       createGitHubSoftwareEngineerAdapter,
       createLinearSoftwareEngineerAdapter,
       createWorkspaceIssuesAdapter,
+      createWorkspaceAgentsAdapter,
       createWorkspaceSoftwareEngineerAdapter,
     },
     { createGitHubTokenClient },
@@ -109,6 +111,13 @@ if (import.meta.main) {
   const issueStore = createSqliteIssueStore(sqlite, githubRepository)
   const bulletinStore = createSqliteBulletinStore(sqlite)
   const chatStore = createSqliteChatStore(sqlite)
+  const agentDefinitionStore = createAgentDefinitionStore(sqlite)
+  const firstAdmin = sqlite
+    .prepare(
+      `SELECT id FROM user WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1`,
+    )
+    .get() as { id: string } | undefined
+  if (firstAdmin) agentDefinitionStore.ensureSeeded(firstAdmin.id)
   const linearAccessToken = process.env.LINEAR_MCP_API_KEY
   const githubBase = process.env.SWEAT_GITHUB_BASE ?? 'main'
   const agentCaCertificate = process.env.SWEAT_AGENT_CA_CERT
@@ -196,12 +205,24 @@ if (import.meta.main) {
           }))
         },
         layoutForAgent(agentDefinitionId) {
-          const person = rosterPerson(agentDefinitionId)
-          return person?.kind
+          return agentDefinitionStore.get(agentDefinitionId)?.kind
         },
       },
       connectionAdapters: (agentDefinitionId) =>
         connections.adaptersForAgent(agentDefinitionId),
+      getPerson: (id) => {
+        const record = agentDefinitionStore.get(id)
+        if (!record) return undefined
+        return {
+          id: record.id,
+          kind: record.kind,
+          instructions: record.instructions,
+          githubAccess: record.githubAccess,
+          archived: record.archivedAt !== undefined,
+          visibility: record.visibility,
+          creatorAccountId: record.creatorAccountId,
+        }
+      },
       adapters: [
         createWorkspaceSoftwareEngineerAdapter({
           port: {
@@ -224,9 +245,7 @@ if (import.meta.main) {
             getIssue: (ref) => resolveIssue(issueStore, ref),
             createIssue: (input) => {
               if (input.owner?.kind === 'agent') {
-                const known = rosterDefinitionSummaries().some(
-                  (agent) => agent.id === input.owner!.id,
-                )
+                const known = Boolean(agentDefinitionStore.get(input.owner!.id))
                 if (!known) throw new Error('Unknown agent definition')
               }
               if (input.owner?.kind === 'account') {
@@ -290,9 +309,7 @@ if (import.meta.main) {
               const issue = resolveIssue(issueStore, ref)
               if (!issue) throw new Error(`Issue not found: ${ref}`)
               if (owner?.kind === 'agent') {
-                const known = rosterDefinitionSummaries().some(
-                  (agent) => agent.id === owner.id,
-                )
+                const known = Boolean(agentDefinitionStore.get(owner.id))
                 if (!known) throw new Error('Unknown agent definition')
               }
               if (owner?.kind === 'account') {
@@ -305,17 +322,63 @@ if (import.meta.main) {
             },
           },
           listAssignableOwners: () => [
-            ...rosterDefinitionSummaries().map((agent) => ({
-              kind: 'agent' as const,
-              id: agent.id,
-              name: agent.name,
-            })),
+            ...agentDefinitionStore
+              .listAll()
+              .filter(
+                (agent) =>
+                  agent.archivedAt === undefined &&
+                  agent.visibility === 'workspace',
+              )
+              .map((agent) => ({
+                kind: 'agent' as const,
+                id: agent.id,
+                name: agent.name,
+              })),
             ...store.listWorkspaceUsers().map((user) => ({
               kind: 'account' as const,
               id: user.id,
               name: user.displayName || user.name,
             })),
           ],
+        }),
+        createWorkspaceAgentsAdapter({
+          port: {
+            createAgent(input, responsibleAccountId, creatingAgentId) {
+              const record = agentDefinitionStore.create(
+                {
+                  ...input,
+                  creatorAccountId: responsibleAccountId,
+                  creatingAgentId,
+                },
+                Date.now(),
+              )
+              return {
+                id: record.id,
+                name: record.name,
+                description: record.description,
+                kind: record.kind,
+                visibility: record.visibility,
+                creatorAccountId: record.creatorAccountId,
+                creatingAgentId: record.creatingAgentId,
+              }
+            },
+            duplicateAgent(id, responsibleAccountId, creatingAgentId) {
+              const record = agentDefinitionStore.duplicate(
+                id,
+                { creatorAccountId: responsibleAccountId, creatingAgentId },
+                Date.now(),
+              )
+              return {
+                id: record.id,
+                name: record.name,
+                description: record.description,
+                kind: record.kind,
+                visibility: record.visibility,
+                creatorAccountId: record.creatorAccountId,
+                creatingAgentId: record.creatingAgentId,
+              }
+            },
+          },
         }),
         ...(linearAccessToken
           ? [
@@ -377,7 +440,8 @@ if (import.meta.main) {
     bulletinStore,
     chatStore,
     issueNotify,
-    agentDefinitions: () => {
+    agentDefinitionStore,
+    agentDefinitions: (viewerAccountId) => {
       const attachments = skills.listAttachments()
       const byAgent = new Map<
         string,
@@ -427,7 +491,24 @@ if (import.meta.main) {
           }),
         )
       }
-      return rosterDefinitionSummaries(byAgent, connectionCapabilities)
+      return agentDefinitionStore.listVisible(viewerAccountId).map((record) =>
+        summaryFromPerson(
+          {
+            id: record.id,
+            name: record.name,
+            description: record.description,
+            kind: record.kind,
+            githubAccess: record.githubAccess,
+            visibility: record.visibility,
+            creatorAccountId: record.creatorAccountId,
+            creatingAgentId: record.creatingAgentId,
+            archivedAt: record.archivedAt,
+            instructions: record.instructions,
+          },
+          byAgent.get(record.id) ?? [],
+          connectionCapabilities.get(record.id) ?? [],
+        ),
+      )
     },
     admission: {
       store: admissionStore,
@@ -437,6 +518,16 @@ if (import.meta.main) {
       grantTools,
       skills,
       connections,
+      agentMentionHandles: () => agentDefinitionStore.mentionHandles(),
+      listAgents: () =>
+        agentDefinitionStore
+          .listAll()
+          .filter((agent) => agent.archivedAt === undefined)
+          .map((agent) => ({ id: agent.id, name: agent.name })),
+      knownAgent: (id) => {
+        const agent = agentDefinitionStore.get(id)
+        return Boolean(agent && agent.archivedAt === undefined)
+      },
       listUsers: () => authContext.internalAdapter.listUsers(100),
       banUser: (request, userId) =>
         auth.api.banUser({ body: { userId }, headers: request.headers }),
@@ -470,6 +561,12 @@ if (import.meta.main) {
           asResponse: true,
         })
         if (!created.ok) return created
+        if (role === 'admin') {
+          const row = sqlite
+            .prepare('SELECT id FROM user WHERE email = ?')
+            .get(body.email) as { id: string } | undefined
+          if (row) agentDefinitionStore.ensureSeeded(row.id)
+        }
         const signedIn = await auth.api.signInEmail({
           body: { email: body.email, password: body.password },
           asResponse: true,
@@ -478,8 +575,8 @@ if (import.meta.main) {
       },
     },
     agentReady: (agentDefinitionId) => {
-      const person = rosterPerson(agentDefinitionId ?? '')
-      if (!person) return false
+      const person = agentDefinitionStore.get(agentDefinitionId ?? '')
+      if (!person || person.archivedAt !== undefined) return false
       return person.kind === 'cursor'
         ? cursorRuntime.public().configured
         : llm.public().configured

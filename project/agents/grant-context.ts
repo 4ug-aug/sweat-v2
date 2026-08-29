@@ -15,4 +15,6 @@ export type AgentGrantContext = {
   /** Extra Git heads to merge onto repositoryBase during Issue integrate checkout. */
   mergeRevisions?: string[];
   agentDefinitionId?: string;
+  /** Account accountable for consequential actions of this run. */
+  responsibleAccountId?: string;
 };

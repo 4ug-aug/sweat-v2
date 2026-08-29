@@ -46,6 +46,7 @@ import {
   StickyNote,
   ScrollText,
   Settings,
+  Bot,
   Box,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -81,6 +82,7 @@ export function RoomSidebar({
   onOpenAccount,
   onOpenWorkspace,
   onOpenSchedules,
+  onOpenAgents,
   onOpenIssues,
   onOpenBulletins,
   onOpenChat,
@@ -99,6 +101,7 @@ export function RoomSidebar({
   onOpenAccount: () => void
   onOpenWorkspace: () => void
   onOpenSchedules: () => void
+  onOpenAgents: () => void
   onOpenIssues: () => void
   onOpenBulletins: () => void
   onOpenChat: () => void
@@ -351,6 +354,15 @@ export function RoomSidebar({
                 >
                   <CalendarClock />
                   <span>Schedules</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={view === 'agents'}
+                  onClick={onOpenAgents}
+                >
+                  <Bot />
+                  <span>Agents</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {user.role === 'admin' && (

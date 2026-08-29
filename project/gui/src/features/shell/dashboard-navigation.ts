@@ -7,6 +7,7 @@ export type DashboardView =
   | 'issues'
   | 'bulletins'
   | 'vms'
+  | 'agents'
 
 /**
  * The single side surface a Room can show at once (thread rail or Run
@@ -40,6 +41,7 @@ const views: DashboardView[] = [
   'issues',
   'bulletins',
   'vms',
+  'agents',
 ]
 
 function parseSurface(value: unknown): DashboardSideSurface | undefined {

@@ -1,6 +1,7 @@
 // Server-side roster: pairs the client-safe presentation in ./roster-people
 // with the role modules that own each person's system instructions.
 
+import { requestedCapabilitiesFor } from "./platform-capabilities";
 import { antboyRole } from "../roles/antboy";
 import type { AgentRole } from "../roles/role";
 import { softwareEngineerRole } from "../roles/software-engineer";
@@ -43,9 +44,83 @@ export type RosterDefinitionSummary = {
   kind: AgentRuntimeKind;
   icon: string;
   includeRepository: boolean;
+  visibility?: "private" | "workspace";
+  creatorAccountId?: string;
+  creatingAgentId?: string;
+  archivedAt?: number;
+  instructions?: string;
   capabilities: { id: string; name: string; tools: string[] }[];
   skills: { id: string; name: string; description: string }[];
 };
+
+export function agentIcon(kind: AgentRuntimeKind): string {
+  return kind === "cursor" ? "bot" : "bot-message-square";
+}
+
+function presentedCapabilities(
+  githubAccess: boolean,
+  linked: readonly { id: string; name: string; tools: string[] }[],
+): { id: string; name: string; tools: string[] }[] {
+  const roleCapabilities = requestedCapabilitiesFor(githubAccess).map(
+    (capability) => {
+      const presentation = capabilityPresentation[capability.id];
+      return {
+        id: capability.id,
+        name: presentation?.name ?? capability.id,
+        tools: capability.tools.map(
+          (tool) => presentation?.tools[tool] ?? tool,
+        ),
+      };
+    },
+  );
+  const seen = new Set(roleCapabilities.map((capability) => capability.id));
+  const capabilities = [...roleCapabilities];
+  for (const capability of linked) {
+    if (seen.has(capability.id)) continue;
+    seen.add(capability.id);
+    capabilities.push(capability);
+  }
+  return capabilities;
+}
+
+export function summaryFromPerson(
+  person: {
+    id: string;
+    name: string;
+    description: string;
+    kind: AgentRuntimeKind;
+    githubAccess: boolean;
+    visibility?: "private" | "workspace";
+    creatorAccountId?: string;
+    creatingAgentId?: string;
+    archivedAt?: number;
+    instructions?: string;
+  },
+  skills: readonly { id: string; name: string; description: string }[] = [],
+  linked: readonly { id: string; name: string; tools: string[] }[] = [],
+): RosterDefinitionSummary {
+  return {
+    id: person.id,
+    name: person.name,
+    description: person.description,
+    kind: person.kind,
+    icon: agentIcon(person.kind),
+    includeRepository: person.githubAccess,
+    ...(person.instructions ? { instructions: person.instructions } : {}),
+    ...(person.visibility ? { visibility: person.visibility } : {}),
+    ...(person.creatorAccountId
+      ? { creatorAccountId: person.creatorAccountId }
+      : {}),
+    ...(person.creatingAgentId
+      ? { creatingAgentId: person.creatingAgentId }
+      : {}),
+    ...(person.archivedAt !== undefined
+      ? { archivedAt: person.archivedAt }
+      : {}),
+    capabilities: presentedCapabilities(person.githubAccess, linked),
+    skills: [...skills],
+  };
+}
 
 export function rosterDefinitionSummaries(
   skillsByAgent: ReadonlyMap<

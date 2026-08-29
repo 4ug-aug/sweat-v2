@@ -139,12 +139,14 @@ test('omits rootId from the grant context when the room-linked run has none', ()
 
   control.start('summarize the room', {
     roomId: 'room-1',
+    responsibleAccountId: 'ada',
     onCreate: () => true,
   })
 
   expect(request?.grantContext).toEqual({
     roomId: 'room-1',
     agentDefinitionId: 'software-engineer',
+    responsibleAccountId: 'ada',
   })
 })
 
