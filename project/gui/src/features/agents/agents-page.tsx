@@ -77,7 +77,7 @@ export function AgentsPage({ user }: { user: Author }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AgentDefinition | undefined>()
   const [form, setForm] = useState<AgentForm>(emptyForm)
-  const [hexInput, setHexInput] = useState(ACCOUNT_COLORS[0]!)
+  const [hexInput, setHexInput] = useState<string>(ACCOUNT_COLORS[0]!)
   const [error, setError] = useState<string>()
   const isAdmin = user.role === 'admin'
   const previewInk = agentInk(form.color)
