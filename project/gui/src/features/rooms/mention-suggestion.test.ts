@@ -1,12 +1,18 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { QueryClient } from '@tanstack/react-query'
-import { expect, test } from 'bun:test'
+import { afterAll, beforeAll, expect, test } from 'bun:test'
 import { act } from 'react'
 import { suggestionMenu, type MentionItem } from './mention-suggestion'
 
-if (!globalThis.document) GlobalRegistrator.register()
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-  true
+beforeAll(() => {
+  if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register()
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
+    true
+})
+
+afterAll(async () => {
+  if (GlobalRegistrator.isRegistered) await GlobalRegistrator.unregister()
+})
 
 const agentItem: MentionItem = {
   id: 'antboy',

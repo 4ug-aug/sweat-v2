@@ -1,4 +1,3 @@
-import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
   Tooltip,
@@ -24,6 +23,7 @@ import type { ReactNode } from 'react'
 import { previewCron } from '../cron'
 import { formatScheduleWhen } from '../format'
 import type { Schedule } from '../types'
+import { ScheduleStatusMark } from './schedule-status-icon'
 
 function cronDescription(expression: string, timezone: string) {
   try {
@@ -101,6 +101,7 @@ export function ScheduleRow({
       data-schedule-row={schedule.id}
       className="group flex h-11 min-w-0 items-center gap-2 overflow-hidden border-b border-border/40 px-3 text-sm last:border-b-0 hover:bg-muted/40"
     >
+      <ScheduleStatusMark state={schedule.state} />
       <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
         <span className="max-w-[min(40%,16rem)] shrink-0 truncate font-medium">
           {schedule.name}
@@ -118,9 +119,6 @@ export function ScheduleRow({
           {agentName}
         </span>
       </span>
-      <Badge variant="secondary" className="capitalize">
-        {schedule.state}
-      </Badge>
       <span
         className="hidden max-w-28 shrink-0 truncate font-mono text-xs text-muted-foreground @lg:inline"
         title={cronHint}
