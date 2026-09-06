@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -117,7 +117,7 @@ export function CreateRoomPopover({
               size="xs"
               disabled={pending || !roomName.trim()}
             >
-              {pending ? <BrailleLoader text="Creating room" /> : 'Create'}
+              {pending ? <AgentThinking label="Creating room" /> : 'Create'}
             </Button>
             <Button type="button" variant="ghost" size="xs" onClick={close}>
               Cancel

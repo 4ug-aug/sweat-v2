@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { setServerBase } from '#/lib/server-config'
 import { ColonyMark } from '#/components/colony-mark'
 import { Button } from '#/components/ui/button'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Input } from '#/components/ui/input'
 
 export function ServerSelection({ onConnected }: { onConnected: () => void }) {
@@ -68,7 +68,7 @@ export function ServerSelection({ onConnected }: { onConnected: () => void }) {
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button className="w-full" type="submit" disabled={pending}>
-        {pending ? <BrailleLoader text="Connecting" /> : 'Connect'}
+        {pending ? <AgentThinking label="Connecting" /> : 'Connect'}
       </Button>
     </form>
   )

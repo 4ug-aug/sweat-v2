@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -131,7 +131,7 @@ export function MembersSettings({ currentUserId }: { currentUserId: string }) {
       )}
       {isPending ? (
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading members" />
+          <AgentThinking label="Loading members" />
         </p>
       ) : (
         <div className="divide-y divide-border/40">
@@ -234,7 +234,7 @@ export function MembersSettings({ currentUserId }: { currentUserId: string }) {
               </Button>
               <Button disabled={resetPassword.isPending} type="submit">
                 {resetPassword.isPending ? (
-                  <BrailleLoader text="Resetting" />
+                  <AgentThinking label="Resetting" />
                 ) : (
                   'Reset password'
                 )}

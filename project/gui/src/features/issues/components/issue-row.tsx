@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Checkbox } from '#/components/ui/checkbox'
 import {
   Popover,
@@ -217,13 +217,13 @@ export function IssueRow({
       <StatusPicker issue={issue} />
       <span className="min-w-24 flex-1 truncate font-medium">{issue.title}</span>
       {issue.hasActiveRun ? (
-        <BrailleLoader
-          text="Running"
+        <AgentThinking
+          label="Running"
           className="hidden shrink-0 text-xs text-muted-foreground @2xl:inline-flex"
         />
       ) : work === 'Children running' ? (
-        <BrailleLoader
-          text="Children running"
+        <AgentThinking
+          label="Children running"
           className="hidden shrink-0 text-xs text-muted-foreground @2xl:inline-flex"
         />
       ) : work ? (

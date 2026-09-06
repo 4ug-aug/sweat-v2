@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   Select,
@@ -56,7 +56,7 @@ export function GrantToolsSettings() {
     return (
       <SettingsCard title="Run tools">
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading run tool settings" />
+          <AgentThinking label="Loading run tool settings" />
         </p>
       </SettingsCard>
     )
@@ -180,7 +180,7 @@ function GrantToolsForm({
         </label>
         <div className="flex items-center gap-3">
           <Button disabled={busy} onClick={() => save.mutate()}>
-            {save.isPending ? <BrailleLoader text="Saving" /> : 'Save run tools'}
+            {save.isPending ? <AgentThinking label="Saving" /> : 'Save run tools'}
           </Button>
         </div>
       </div>

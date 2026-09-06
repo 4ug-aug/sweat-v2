@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '#/components/ui/alert-dialog'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Skull } from 'lucide-react'
 import type { Machine } from '../types'
@@ -71,7 +71,7 @@ export function NukeMachineButton({
             disabled={nuke.isPending}
             onClick={() => nuke.mutate(machine.id)}
           >
-            {nuke.isPending ? <BrailleLoader text="Nuking" /> : 'Nuke machine'}
+            {nuke.isPending ? <AgentThinking label="Nuking" /> : 'Nuke machine'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

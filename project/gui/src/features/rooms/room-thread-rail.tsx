@@ -1,7 +1,7 @@
 import { Avatar } from '#/components/avatar'
 import { timestamp } from './format'
 import { Markdown } from '#/components/markdown'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   Sheet,
@@ -299,7 +299,7 @@ function RoomThreadRailContent({
         >
           {isLoading && !root && (
             <p className="text-sm text-muted-foreground" role="status">
-              <BrailleLoader text="Loading thread" />
+              <AgentThinking label="Loading thread" />
             </p>
           )}
           {error && !root && (

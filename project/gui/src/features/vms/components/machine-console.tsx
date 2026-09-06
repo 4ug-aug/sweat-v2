@@ -1,5 +1,5 @@
 import { Badge } from '#/components/ui/badge'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
@@ -122,7 +122,7 @@ function MachineShell({ id }: { id: string }) {
             <div className="mt-3">
               <Prompt>{exec.variables}</Prompt>
               <p className="mt-1 text-muted-foreground" role="status">
-                <BrailleLoader text="Running" />
+                <AgentThinking label="Running" />
               </p>
             </div>
           )}
@@ -218,7 +218,7 @@ export function MachineConsole({ id }: { id: string }) {
       </div>
       {isPending && !data && (
         <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading logs" />
+          <AgentThinking label="Loading logs" />
         </p>
       )}
       {error && (

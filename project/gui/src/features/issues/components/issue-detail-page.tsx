@@ -1,5 +1,5 @@
 import { Markdown } from '#/components/markdown'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -291,7 +291,7 @@ export function IssueDetailPage({
   if (isPending) {
     return (
       <div className="flex flex-1 justify-center py-12 text-sm text-muted-foreground">
-        <BrailleLoader text="Loading issue…" />
+        <AgentThinking label="Loading issue…" />
       </div>
     )
   }

@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { cn } from '#/lib/utils'
 import { useWindowKeydown } from '#/hooks/use-window-keydown'
 import { authClient } from '#/lib/auth-client'
@@ -142,7 +142,7 @@ export function IssuesPage({
               className="flex justify-center py-12 text-sm text-muted-foreground"
               role="status"
             >
-              <BrailleLoader text="Loading issues…" />
+              <AgentThinking label="Loading issues…" />
             </div>
           ) : isError ? (
             <p className="text-sm text-destructive" role="alert">

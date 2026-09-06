@@ -1,5 +1,5 @@
 import { Markdown } from '#/components/markdown'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { toast } from '#/components/ui/toast'
 import { AgentMark } from '#/features/agents/agent-mark'
@@ -217,7 +217,7 @@ export function ChatsPage({
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
             {selectedId && isPending && !data ? (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                <BrailleLoader text="Loading chat" />
+                <AgentThinking label="Loading chat" />
               </p>
             ) : null}
             {error ? (

@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '#/components/ui/alert-dialog'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import {
@@ -120,7 +120,7 @@ export function ConnectionSettings() {
     return (
       <SettingsCard title="Connections">
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading connections" />
+          <AgentThinking label="Loading connections" />
         </p>
       </SettingsCard>
     )
@@ -375,7 +375,7 @@ function ConnectionCard({
                     onClick={() => clear.mutate()}
                   >
                     {clear.isPending ? (
-                      <BrailleLoader text="Clearing" />
+                      <AgentThinking label="Clearing" />
                     ) : (
                       'Clear'
                     )}
@@ -396,7 +396,7 @@ function ConnectionCard({
             </Button>
           ) : (
             <Button disabled={busy} onClick={() => save.mutate()} size="sm">
-              {save.isPending ? <BrailleLoader text="Saving" /> : 'Save'}
+              {save.isPending ? <AgentThinking label="Saving" /> : 'Save'}
             </Button>
           )}
         </div>
@@ -463,7 +463,7 @@ function ConnectionCard({
                 Cancel
               </Button>
               <Button disabled={busy} onClick={() => save.mutate()}>
-                {save.isPending ? <BrailleLoader text="Saving" /> : 'Save'}
+                {save.isPending ? <AgentThinking label="Saving" /> : 'Save'}
               </Button>
             </DialogFooter>
           </DialogContent>

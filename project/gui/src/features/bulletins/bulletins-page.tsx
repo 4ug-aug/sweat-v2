@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { toast } from '#/components/ui/toast'
 import { RestrictToElement } from '@dnd-kit/dom/modifiers'
@@ -166,7 +166,7 @@ export function BulletinsPage({ currentUserId }: { currentUserId: string }) {
           className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground"
           role="status"
         >
-          <BrailleLoader text="Loading bulletins…" />
+          <AgentThinking label="Loading bulletins…" />
         </div>
       ) : isError ? (
         <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-destructive">

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   HoverCard,
@@ -55,9 +55,9 @@ export function ActiveAgents({
             </AvatarGroupCount>
           )}
         </AvatarGroup>
-        <BrailleLoader
-          loader="wave-rows"
-          text={`${name(activeRuns[0].agentId)}${activeRuns.length > 1 ? ` +${activeRuns.length - 1}` : ''}`}
+        <AgentThinking
+          variant="spin"
+          label={`${name(activeRuns[0].agentId)}${activeRuns.length > 1 ? ` +${activeRuns.length - 1}` : ''}`}
         />
       </HoverCardTrigger>
       <HoverCardContent

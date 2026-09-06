@@ -1,6 +1,6 @@
 import { Markdown } from '#/components/markdown'
 import { Badge } from '#/components/ui/badge'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -91,7 +91,7 @@ function ScheduleRunTranscript({
           </div>
           {isPending && !steps.length ? (
             <p className="text-sm text-muted-foreground" role="status">
-              <BrailleLoader text="Loading run" />
+              <AgentThinking label="Loading run" />
             </p>
           ) : null}
           {isError && !steps.length ? (
@@ -197,7 +197,7 @@ export function ScheduleHistoryPage({
               className="flex justify-center py-12 text-sm text-muted-foreground"
               role="status"
             >
-              <BrailleLoader text="Loading history" />
+              <AgentThinking label="Loading history" />
             </div>
           ) : isError ? (
             <p className="px-4 py-8 text-sm text-destructive" role="alert">

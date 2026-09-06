@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   ResizableHandle,
@@ -320,7 +320,7 @@ export function RoomView({
                       className="flex justify-center pb-4 text-sm text-muted-foreground"
                       role="status"
                     >
-                      <BrailleLoader text="Loading older messages…" />
+                      <AgentThinking label="Loading older messages…" />
                     </div>
                   )}
                   {loading ? (
@@ -328,7 +328,7 @@ export function RoomView({
                       className="flex justify-center py-12 text-sm text-muted-foreground"
                       role="status"
                     >
-                      <BrailleLoader text="Loading room…" />
+                      <AgentThinking label="Loading room…" />
                     </div>
                   ) : (
                     <div className="room-fade-in">

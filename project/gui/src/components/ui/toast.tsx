@@ -3,7 +3,7 @@ import { Toast as ToastPrimitive } from '@base-ui/react/toast'
 
 import { cn } from '#/lib/utils.ts'
 import { Button } from '#/components/ui/button.tsx'
-import { BrailleLoader } from '#/components/ui/braille-loader.tsx'
+import { AgentThinking } from '#/components/ui/agent-thinking.tsx'
 import {
   XIcon,
   CircleCheckIcon,
@@ -155,7 +155,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   }
 
   if (type === 'loading') {
-    icon = <BrailleLoader text="Loading" className="[&_svg]:size-4" />
+    icon = <AgentThinking label="Loading" />
   }
 
   if (!icon) {

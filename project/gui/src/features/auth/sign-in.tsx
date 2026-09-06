@@ -4,7 +4,7 @@ import { authClient } from '#/lib/auth-client'
 import { apiFetch } from '#/lib/api-transport'
 import { ColonyMark } from '#/components/colony-mark'
 import { Button } from '#/components/ui/button'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Input } from '#/components/ui/input'
 import {
   clearServerConfig,
@@ -90,7 +90,7 @@ export function SignIn({ onChangeServer }: { onChangeServer: () => void }) {
   if (checking)
     return (
       <p className="entry-form text-sm text-muted-foreground">
-        <BrailleLoader text="Connecting to Colony" />
+        <AgentThinking label="Connecting to Colony" />
       </p>
     )
   return (
@@ -189,7 +189,7 @@ export function SignIn({ onChangeServer }: { onChangeServer: () => void }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button className="w-full" type="submit" disabled={pending}>
         {pending ? (
-          <BrailleLoader text={admission ? 'Creating account' : 'Signing in'} />
+          <AgentThinking label={admission ? 'Creating account' : 'Signing in'} />
         ) : admission ? (
           'Create account'
         ) : (

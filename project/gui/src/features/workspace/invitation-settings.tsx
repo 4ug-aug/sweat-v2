@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -132,7 +132,7 @@ export function InvitationSettings() {
       )}
       {isPending && (
         <p className="mb-3 text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading invitations" />
+          <AgentThinking label="Loading invitations" />
         </p>
       )}
       <div className="flex gap-2">
@@ -157,7 +157,7 @@ export function InvitationSettings() {
           onClick={() => createInvitation.mutate()}
         >
           {createInvitation.isPending ? (
-            <BrailleLoader text="Creating" />
+            <AgentThinking label="Creating" />
           ) : (
             'Create link'
           )}

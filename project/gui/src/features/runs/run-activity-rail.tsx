@@ -1,6 +1,6 @@
 import { Markdown } from '#/components/markdown'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import {
   Sheet,
@@ -175,7 +175,7 @@ export function RunActivityContent({
           </h3>
           {loading && !steps.length && (
             <p className="text-sm text-muted-foreground" role="status">
-              <BrailleLoader text="Loading activity" />
+              <AgentThinking label="Loading activity" />
             </p>
           )}
           {error && !steps.length && (
@@ -262,7 +262,7 @@ export function RunActivityContent({
         )}
         {!terminal(run.state) && (
           <div className="flex items-center gap-2 border-t pt-5 text-sm text-muted-foreground">
-            <BrailleLoader text={status} />
+            <AgentThinking label={status} showTimer />
           </div>
         )}
       </div>

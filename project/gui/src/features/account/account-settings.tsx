@@ -7,7 +7,7 @@ import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { AccountFace, AgentAnt } from '#/components/avatar'
 import { StaticDither } from '#/components/static-dither'
 import { Button } from '#/components/ui/button'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import {
   Card,
   CardContent,
@@ -475,7 +475,7 @@ export function AccountSettingsPage({
                       disabled={pending !== undefined}
                     >
                       {pending === 'profile' ? (
-                        <BrailleLoader text="Saving profile" />
+                        <AgentThinking label="Saving profile" />
                       ) : (
                         'Save profile'
                       )}
@@ -527,7 +527,7 @@ export function AccountSettingsPage({
                         disabled={pending !== undefined}
                       >
                         {pending === 'password' ? (
-                          <BrailleLoader text="Changing password" />
+                          <AgentThinking label="Changing password" />
                         ) : (
                           'Change password'
                         )}
@@ -541,7 +541,7 @@ export function AccountSettingsPage({
                         onClick={() => void revokeOtherSessions()}
                       >
                         {pending === 'sessions' ? (
-                          <BrailleLoader text="Signing out" />
+                          <AgentThinking label="Signing out" />
                         ) : (
                           'Sign out others'
                         )}
@@ -595,7 +595,7 @@ export function AccountSettingsPage({
                             onClick={() => void changeServer()}
                           >
                             {pending === 'server' ? (
-                              <BrailleLoader text="Disconnecting" />
+                              <AgentThinking label="Disconnecting" />
                             ) : (
                               'Change server'
                             )}

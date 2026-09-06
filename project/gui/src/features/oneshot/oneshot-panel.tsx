@@ -1,7 +1,7 @@
 import { AgentMark } from '#/features/agents/agent-mark'
 import { Markdown } from '#/components/markdown'
 import { Badge } from '#/components/ui/badge'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Kbd, KbdGroup } from '#/components/ui/kbd'
@@ -367,14 +367,14 @@ export function OneshotPanel({
               />
             ) : null}
             {working && run ? (
-              <BrailleLoader
+              <AgentThinking
                 className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-                text={`${agentName} ${workingLabel(run, steps)}`}
+                label={`${agentName} ${workingLabel(run, steps)}`}
               />
             ) : working ? (
-              <BrailleLoader
+              <AgentThinking
                 className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-                text={`${agentName} is starting`}
+                label={`${agentName} is starting`}
               />
             ) : active && run ? (
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground flex items-center gap-2">

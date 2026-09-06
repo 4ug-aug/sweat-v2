@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '#/components/ui/alert-dialog'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import { Input } from '#/components/ui/input'
@@ -264,7 +264,7 @@ export function AgentsPage({ user }: { user: Author }) {
                           onClick={() => duplicate.mutate(agent.id)}
                         >
                           {duplicate.isPending ? (
-                            <BrailleLoader text="Duplicating" />
+                            <AgentThinking label="Duplicating" />
                           ) : (
                             'Duplicate'
                           )}
@@ -317,7 +317,7 @@ export function AgentsPage({ user }: { user: Author }) {
                             onClick={() => archive.mutate(agent.id)}
                           >
                             {archive.isPending ? (
-                              <BrailleLoader text="Archiving" />
+                              <AgentThinking label="Archiving" />
                             ) : (
                               'Archive'
                             )}

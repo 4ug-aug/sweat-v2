@@ -1,6 +1,6 @@
 import { ProviderIcon } from '#/components/provider-icon'
 import { AvatarGroup } from '#/components/ui/avatar'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { useAgentName } from '#/features/agents/use-agent-definitions'
 import type { RoomRun } from '#/features/rooms/types'
 import { llmProviderName } from '#/lib/llm-provider'
@@ -48,7 +48,7 @@ export function RunCapsule({
       ) : run.state === 'cancelled' ? (
         <X className="size-3.5" />
       ) : (
-        <BrailleLoader text="Working" className="[&_svg]:size-3.5" />
+        <AgentThinking label="Working" />
       )}
       <span>1</span>
     </button>

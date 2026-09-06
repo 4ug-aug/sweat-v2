@@ -1,5 +1,5 @@
 import { Badge } from '#/components/ui/badge'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { HardDrive } from 'lucide-react'
 import { MachineCard } from './components/machine-card'
 import { MachineDetail } from './components/machine-session'
@@ -20,7 +20,7 @@ export function VmsPage({
     if (isPending && !data)
       return (
         <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
-          <BrailleLoader text="Loading machine" />
+          <AgentThinking label="Loading machine" />
         </div>
       )
     if (!machine)
@@ -39,7 +39,7 @@ export function VmsPage({
   if (isPending)
     return (
       <div className="p-8 text-sm text-muted-foreground" role="status">
-        <BrailleLoader text="Loading machines" />
+        <AgentThinking label="Loading machines" />
       </div>
     )
 

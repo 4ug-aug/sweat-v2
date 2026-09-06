@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '#/components/ui/alert-dialog'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import {
@@ -362,7 +362,7 @@ export function AgentSkillsSettings() {
               onClick={() => importSkill.mutate()}
             >
               {importSkill.isPending ? (
-                <BrailleLoader text="Importing" />
+                <AgentThinking label="Importing" />
               ) : (
                 'Import skill'
               )}
@@ -381,7 +381,7 @@ export function AgentSkillsSettings() {
         </div>
         {isPending ? (
           <p className="text-sm text-muted-foreground" role="status">
-            <BrailleLoader text="Loading skills" />
+            <AgentThinking label="Loading skills" />
           </p>
         ) : skills.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -447,7 +447,7 @@ export function AgentSkillsSettings() {
                               onClick={() => deleteSkill.mutate(skill)}
                             >
                               {skillBusy ? (
-                                <BrailleLoader text="Deleting" />
+                                <AgentThinking label="Deleting" />
                               ) : (
                                 'Delete'
                               )}
@@ -463,7 +463,7 @@ export function AgentSkillsSettings() {
                         className="text-sm text-muted-foreground"
                         role="status"
                       >
-                        <BrailleLoader text="Updating attachments" />
+                        <AgentThinking label="Updating attachments" />
                       </p>
                     )}
                     {agents.map((agent) => {
@@ -528,7 +528,7 @@ export function AgentSkillsSettings() {
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {skillDetail.isPending && (
               <p className="text-sm text-muted-foreground" role="status">
-                <BrailleLoader text="Loading skill" />
+                <AgentThinking label="Loading skill" />
               </p>
             )}
             {!skillDetail.isPending &&

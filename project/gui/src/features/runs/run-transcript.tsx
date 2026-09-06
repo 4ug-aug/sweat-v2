@@ -1,5 +1,5 @@
 import { Markdown } from '#/components/markdown'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { AgentMark } from '#/features/agents/agent-mark'
 import { groupActivity, pairSteps } from './run-activity'
 import { stepLabel, type Step } from './step-label'
@@ -78,7 +78,10 @@ export function RunTranscript({
         ) : null}
         {working ? (
           <p className="text-sm text-muted-foreground" role="status">
-            <BrailleLoader text={latest ? stepLabel(latest) : 'Working'} />
+            <AgentThinking
+              label={latest ? stepLabel(latest) : 'Working'}
+              showTimer
+            />
           </p>
         ) : null}
       </div>

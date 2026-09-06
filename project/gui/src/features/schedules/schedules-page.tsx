@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '#/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '#/components/ui/tabs'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { toast } from '#/components/ui/toast'
 import { formatScheduleWhen } from './format'
 
@@ -134,7 +134,7 @@ export function SchedulesPage({
   if (isPending)
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        <BrailleLoader text="Loading schedules" />
+        <AgentThinking label="Loading schedules" />
       </div>
     )
   if (historySchedule)

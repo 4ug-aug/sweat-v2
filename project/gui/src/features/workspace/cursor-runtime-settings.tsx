@@ -3,7 +3,7 @@ import {
   agentNameFrom,
   useAgentDefinitions,
 } from '#/features/agents/use-agent-definitions'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -74,7 +74,7 @@ export function CursorRuntimeSettings() {
     return (
       <SettingsCard title="Cursor agent runtime">
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading Cursor runtime settings" />
+          <AgentThinking label="Loading Cursor runtime settings" />
         </p>
       </SettingsCard>
     )
@@ -214,7 +214,7 @@ function CursorRuntimeForm({
         <div className="flex items-center gap-3">
           <Button disabled={busy} onClick={() => save.mutate()}>
             {save.isPending ? (
-              <BrailleLoader text="Saving" />
+              <AgentThinking label="Saving" />
             ) : (
               'Save Cursor runtime'
             )}

@@ -1,5 +1,5 @@
 import { ProviderIcon } from '#/components/provider-icon'
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -50,7 +50,7 @@ export function LlmProviderSettings() {
     return (
       <SettingsCard title="LLM provider">
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading LLM settings" />
+          <AgentThinking label="Loading LLM settings" />
         </p>
       </SettingsCard>
     )
@@ -189,7 +189,7 @@ function LlmProviderForm({
         />
         <div className="flex items-center gap-3">
           <Button disabled={busy} onClick={() => save.mutate()}>
-            {save.isPending ? <BrailleLoader text="Saving" /> : 'Save provider'}
+            {save.isPending ? <AgentThinking label="Saving" /> : 'Save provider'}
           </Button>
           <span className="text-sm text-muted-foreground">
             {config.configured ? (

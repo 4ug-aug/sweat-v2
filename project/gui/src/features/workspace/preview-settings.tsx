@@ -1,4 +1,4 @@
-import { BrailleLoader } from '#/components/ui/braille-loader'
+import { AgentThinking } from '#/components/ui/agent-thinking'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { SettingsCard } from '#/features/workspace/settings-card'
@@ -37,7 +37,7 @@ export function PreviewSettings() {
     return (
       <SettingsCard title="Preview">
         <p className="text-sm text-muted-foreground" role="status">
-          <BrailleLoader text="Loading Preview settings" />
+          <AgentThinking label="Loading Preview settings" />
         </p>
       </SettingsCard>
     )
@@ -170,7 +170,7 @@ function PreviewForm({
         </label>
         <div className="flex items-center gap-3 sm:col-span-2">
           <Button disabled={busy} onClick={() => save.mutate()}>
-            {save.isPending ? <BrailleLoader text="Saving" /> : 'Save Preview'}
+            {save.isPending ? <AgentThinking label="Saving" /> : 'Save Preview'}
           </Button>
           <span className="text-sm text-muted-foreground">
             {config.configured ? (
