@@ -3,17 +3,15 @@ import { useAgentDefinitions } from '#/features/agents/use-agent-definitions'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { previewCron } from './cron'
-import { ScheduleHistorySheet } from './components/schedule-history-sheet'
+import { ScheduleHistoryPage } from './components/schedule-history-page'
 import { ScheduleRow } from './components/schedule-row'
 import {
-  useCancelScheduleRun,
   useCreateSchedule,
   useRunScheduleNow,
-  useScheduleRuns,
   useSchedules,
   useUpdateSchedule,
 } from './use-schedules'
-import type { Schedule, ScheduleRun } from './types'
+import type { Schedule } from './types'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -40,7 +38,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { BrailleLoader } from '#/components/ui/braille-loader'
 import { toast } from '#/components/ui/toast'
-import { RunActivityRail } from '#/features/runs/run-activity-rail'
 import { formatScheduleWhen } from './format'
 
 const PAGE_SIZE = 25
@@ -64,7 +61,6 @@ export function SchedulesPage({
   const create = useCreateSchedule()
   const update = useUpdateSchedule()
   const runNow = useRunScheduleNow()
-  const cancel = useCancelScheduleRun()
   const [archived, setArchived] = useState(false)
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
@@ -77,7 +73,7 @@ export function SchedulesPage({
     useState('software-engineer')
   const [formError, setFormError] = useState<string>()
   const [historyScheduleId, setHistoryScheduleId] = useState<string>()
-  const [selectedRun, setSelectedRun] = useState<ScheduleRun>()
+  const [selectedRunId, setSelectedRunId] = useState<string>()
   const preview = useMemo(() => {
     try {
       return previewCron(cronExpression, timezone)
@@ -97,13 +93,10 @@ export function SchedulesPage({
   const historySchedule = schedules.find(
     (schedule) => schedule.id === historyScheduleId,
   )
-  const { data: selectedRunHistory } = useScheduleRuns(selectedRun?.scheduleId)
-  const liveSelectedRun =
-    selectedRunHistory?.find((run) => run.id === selectedRun?.id) ??
-    selectedRun
-  const selectedSchedule = liveSelectedRun
-    ? schedules.find((schedule) => schedule.id === liveSelectedRun.scheduleId)
-    : undefined
+  const openHistory = (scheduleId: string) => {
+    setHistoryScheduleId(scheduleId)
+    setSelectedRunId(undefined)
+  }
   const startCreate = () => {
     setEditingId(undefined)
     setName('')
@@ -142,6 +135,21 @@ export function SchedulesPage({
     return (
       <div className="p-8 text-sm text-muted-foreground">
         <BrailleLoader text="Loading schedules" />
+      </div>
+    )
+  if (historySchedule)
+    return (
+      <div className="flex min-h-0 flex-1">
+        <ScheduleHistoryPage
+          schedule={historySchedule}
+          selectedRunId={selectedRunId}
+          onSelectedRunIdChange={setSelectedRunId}
+          onBack={() => {
+            setHistoryScheduleId(undefined)
+            setSelectedRunId(undefined)
+          }}
+          onOpenMachine={onOpenMachine}
+        />
       </div>
     )
   return (
@@ -329,7 +337,7 @@ export function SchedulesPage({
                       )
                     }
                     onEdit={() => startEdit(schedule)}
-                    onHistory={() => setHistoryScheduleId(schedule.id)}
+                    onHistory={() => openHistory(schedule.id)}
                     onPause={() =>
                       runScheduleAction(
                         () =>
@@ -425,44 +433,6 @@ export function SchedulesPage({
           )}
         </div>
       </main>
-      <ScheduleHistorySheet
-        schedule={historySchedule}
-        onOpenChange={(open) => {
-          if (!open) setHistoryScheduleId(undefined)
-        }}
-        onSelectRun={(run) => {
-          setSelectedRun(run)
-          setHistoryScheduleId(undefined)
-        }}
-      />
-      {liveSelectedRun && selectedSchedule && (
-        <RunActivityRail
-          run={{
-            ...liveSelectedRun,
-            roomId: '',
-            requestedBy: liveSelectedRun.startedBy ?? {
-              id: 'workspace',
-              name: 'Workspace',
-            },
-            stdout: '',
-            attribution:
-              liveSelectedRun.source === 'automatic'
-                ? `Automatic · scheduled for ${formatScheduleWhen(liveSelectedRun.scheduledFor, selectedSchedule.timezone)}`
-                : `Run now by @${liveSelectedRun.startedBy?.name ?? 'member'}`,
-          }}
-          stepsPath={`/api/schedule-runs/${liveSelectedRun.id}/steps`}
-          liveSteps={[]}
-          onClose={() => setSelectedRun(undefined)}
-          onCancel={() =>
-            runScheduleAction(
-              () => cancel.mutateAsync(liveSelectedRun.id),
-              'Run cancelled',
-              selectedSchedule.name,
-            )
-          }
-          onOpenMachine={onOpenMachine}
-        />
-      )}
     </div>
   )
 }

@@ -266,7 +266,7 @@ export function createWorkspaceIssuesMcpUpstream(options: {
         {
           name: "workspace.get_issue",
           description:
-            "Get one Colony Issue by id or display id (for example COL-123). Legacy SWE-123 references are also accepted.",
+            "Get one Colony Issue by id or display id (for example COL-123).",
           inputSchema: {
             type: "object",
             properties: { ref: { type: "string" } },

@@ -33,11 +33,18 @@ directs another account's attention to that room. Agent slugs share the same
 visible `@` syntax but are not account mentions.
 _Avoid_: Notification, assignment
 
-**Attention**: A durable, account-directed reason to return to a Room or Room
-thread because of a relevant mention, thread reply, or terminal run;
-acknowledging it clears its badge without changing or deleting the shared
-record.
-_Avoid_: Unread message, notification
+**Attention**: A durable, account-directed reason to return to a shared
+record — a Room or Room thread, an Issue-linked run, or a Schedule run —
+because of a relevant mention, thread reply, or terminal run; acknowledging
+it clears its badge without changing or deleting the shared record.
+_Avoid_: Unread message, notification, inbox item (the Inbox lists Attention;
+it is not a separate record type)
+
+**Inbox**: An Account-owned list of that Account's Attention, each with a
+result preview and a link to the source Issue-linked run or Schedule run.
+It is not a destination agents write to, not a Room, and not a badge on
+Schedules.
+_Avoid_: Notification center, feed, mailbox, agent messages
 
 **Schedule**: A workspace-owned recurring delegation that starts bounded runs
 at configured times. It references an agent definition and reusable task while
@@ -644,3 +651,10 @@ granted capabilities. Mitigate this with narrow grants, short expirations,
 auditing, and network egress policy; do not rely on hiding a tool credential
 from shell subprocesses. Consequential writes require no per-call operator
 approval once the platform has issued the run's narrow grant.
+
+## Flagged ambiguities
+
+- "inbox" was used to mean a new agent-writable mailbox — resolved: **Inbox**
+  lists **Attention** with a result preview and a link to the existing run.
+- Inbox recipients for automatic Schedule runs vs **Run now**, and for Issues
+  whose owner is an Agent definition, are not yet resolved.

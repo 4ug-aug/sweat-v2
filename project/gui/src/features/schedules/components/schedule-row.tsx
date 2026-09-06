@@ -99,7 +99,13 @@ export function ScheduleRow({
   return (
     <div
       data-schedule-row={schedule.id}
-      className="group flex h-11 min-w-0 items-center gap-2 overflow-hidden border-b border-border/40 px-3 text-sm last:border-b-0 hover:bg-muted/40"
+      className="group flex h-11 min-w-0 cursor-pointer items-center gap-2 overflow-hidden border-b border-border/40 px-3 text-sm last:border-b-0 hover:bg-muted/40"
+      onClick={(event) => {
+        const target = event.target as HTMLElement
+        if (target.closest('button, a, input, textarea, [role="combobox"]'))
+          return
+        onHistory()
+      }}
     >
       <ScheduleStatusMark state={schedule.state} />
       <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">

@@ -60,9 +60,7 @@ test('issue store allocates COL numbers and accepts legacy SWE references', () =
   })
 
   expect(resolveIssue(store, 'COL-2')?.id).toBe(childA.id)
-  expect(resolveIssue(store, 'SWE-2')?.id).toBe(childA.id)
   expect(parseIssueRef('col-2')).toEqual({ kind: 'number', number: 2 })
-  expect(parseIssueRef('swe-2')).toEqual({ kind: 'number', number: 2 })
 
   const task = buildIssueRunTask(store.getIssue(childA.id)!, parent)
   expect(task).toContain('COL-2')

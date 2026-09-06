@@ -8,15 +8,13 @@ import {
   useAgentDefinitions,
 } from '#/features/agents/use-agent-definitions'
 import { MessageComposer } from '#/features/rooms/message-composer'
-import { groupActivity, pairSteps } from '#/features/runs/run-activity'
-import { stepLabel, type Step } from '#/features/runs/step-label'
-import { ToolCallDetailsList } from '#/features/runs/tool-call-details-list'
+import { asRunStep, RunTranscript } from '#/features/runs/run-transcript'
 import type { AgentDefinition } from '#/features/schedules/types'
 import { cn } from '#/lib/utils'
 import { Ban, MessageSquare, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ChatHistorySheet } from './chat-history-sheet'
-import type { Chat, ChatMessageStep } from './types'
+import type { Chat } from './types'
 import {
   useCancelChatTurn,
   useChat,
@@ -27,19 +25,6 @@ import {
 } from './use-chats'
 
 const DEFAULT_AGENT_ID = 'software-engineer'
-
-function asStep(step: ChatMessageStep, runId: string): Step {
-  return {
-    id: step.id,
-    runId,
-    idx: step.idx,
-    kind: step.kind,
-    ...(step.tool ? { tool: step.tool } : {}),
-    ...(step.callId ? { callId: step.callId } : {}),
-    text: step.text,
-    createdAt: step.createdAt,
-  }
-}
 
 function CoworkerPicker({
   agents,
@@ -122,62 +107,6 @@ function RecentChats({
           </li>
         ))}
       </ul>
-    </div>
-  )
-}
-
-function AssistantTurn({
-  agentId,
-  text,
-  steps,
-  runId,
-  working,
-  error,
-}: {
-  agentId: string
-  text: string
-  steps: ChatMessageStep[]
-  runId: string
-  working?: boolean
-  error?: string
-}) {
-  const items = pairSteps(steps.map((step) => asStep(step, runId)))
-  const groups = groupActivity(items)
-  const latest = items.at(-1)?.step
-  return (
-    <div className="flex gap-3">
-      <AgentMark agentId={agentId} className="mt-0.5 size-8" />
-      <div className="min-w-0 flex-1 space-y-2">
-        {groups
-          .filter((group) => working || group.kind === 'tools')
-          .map((group, index) =>
-            group.kind === 'reasoning' ? (
-              <p
-                key={group.item.step.id}
-                className="whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground animate-in fade-in-0 slide-in-from-bottom-1 duration-300 fill-mode-both motion-reduce:animate-none"
-              >
-                {group.item.step.text}
-              </p>
-            ) : (
-              <ToolCallDetailsList key={`tools-${index}`} items={group.items} />
-            ),
-          )}
-        {text ? (
-          <div className="text-sm leading-6">
-            <Markdown>{text}</Markdown>
-          </div>
-        ) : null}
-        {error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {working ? (
-          <p className="text-sm text-muted-foreground" role="status">
-            <BrailleLoader text={latest ? stepLabel(latest) : 'Working'} />
-          </p>
-        ) : null}
-      </div>
     </div>
   )
 }
@@ -315,21 +244,23 @@ export function ChatsPage({
                   </div>
                 </div>
               ) : (
-                <AssistantTurn
+                <RunTranscript
                   key={message.id}
                   agentId={coworkerId ?? DEFAULT_AGENT_ID}
                   text={message.text}
-                  steps={message.steps}
-                  runId={message.runId ?? message.id}
+                  steps={message.steps.map((step) =>
+                    asRunStep(step, message.runId ?? message.id),
+                  )}
                 />
               ),
             )}
             {turnActive ? (
-              <AssistantTurn
+              <RunTranscript
                 agentId={coworkerId ?? DEFAULT_AGENT_ID}
                 text=""
-                steps={liveSteps}
-                runId={linkedRun?.id ?? 'live'}
+                steps={liveSteps.map((step) =>
+                  asRunStep(step, linkedRun?.id ?? 'live'),
+                )}
                 working
                 error={linkedRun?.error}
               />

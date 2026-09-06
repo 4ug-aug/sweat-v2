@@ -106,7 +106,7 @@ test("create, assign, and get Issues through MCP tools", async () => {
     owner: { kind: "agent", id: "software-engineer" },
   });
   const got = (await upstream.callTool("workspace.get_issue", {
-    ref: "SWE-1",
+    ref: "COL-1",
   })) as { content: { text: string }[] };
   expect(JSON.parse(got.content[0]!.text)).toMatchObject({
     title: "Dock badge",

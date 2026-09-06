@@ -26,13 +26,13 @@ test("allowlist intersects with eligible and fails open to eligible", async () =
   expect(
     await selectGrantedTools(
       { mode: "allowlist", tools: ["workspace.get_issue", "missing.tool"] },
-      { task: "read SWE-1", eligibleTools: eligible },
+      { task: "read COL-123", eligibleTools: eligible },
     ),
   ).toEqual({ tools: ["workspace.get_issue"], reason: "narrowed" });
   expect(
     await selectGrantedTools(
       { mode: "allowlist", tools: ["missing.tool"] },
-      { task: "read SWE-1", eligibleTools: eligible },
+      { task: "read COL-123", eligibleTools: eligible },
     ),
   ).toEqual({ tools: eligible, reason: "fallback" });
 });

@@ -38,7 +38,7 @@ test("OpenAI grant picker calls the SDK path with no tools", async () => {
     return '{"names":["workspace.get_issue"]}';
   });
   const names = await pick({
-    task: "read SWE-1",
+    task: "read COL-123",
     names: ["workspace.get_issue", "github.compare"],
     listing: "workspace.get_issue: Get issues\ngithub.compare: Compare refs",
   });

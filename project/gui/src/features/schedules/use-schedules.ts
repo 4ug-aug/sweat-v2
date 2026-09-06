@@ -6,11 +6,18 @@ import {
 } from '@tanstack/react-query'
 import { apiJson, apiJsonBody } from '#/lib/api-transport'
 import type { Schedule, ScheduleRun } from './types'
+import type { ScheduleRunStep } from '#/server/features/schedules/schedule-store'
+
+export type { ScheduleRunStep }
 
 export const schedulesQueryKey = ['schedules'] as const
 
 export function scheduleRunsQueryKey(scheduleId: string) {
   return ['schedule-runs', scheduleId] as const
+}
+
+export function scheduleRunStepsQueryKey(runId: string) {
+  return ['schedule-run-steps', runId] as const
 }
 
 function upsertSchedule(
@@ -56,6 +63,21 @@ export function upsertScheduleRunInCache(
   )
 }
 
+export function appendScheduleRunStepInCache(
+  queryClient: QueryClient,
+  runId: string,
+  step: ScheduleRunStep,
+) {
+  queryClient.setQueryData(
+    scheduleRunStepsQueryKey(runId),
+    (current: ScheduleRunStep[] | undefined) => {
+      if (!current) return current
+      if (current.some((existing) => existing.id === step.id)) return current
+      return [...current, step].sort((a, b) => a.idx - b.idx)
+    },
+  )
+}
+
 async function fetchSchedules(): Promise<Schedule[]> {
   const data = await apiJson<{ schedules: Schedule[] }>(
     '/api/schedules',
@@ -89,6 +111,25 @@ export function useScheduleRuns(scheduleId: string | undefined) {
       : ['schedule-runs', 'none'],
     queryFn: () => fetchScheduleRuns(scheduleId!),
     enabled: Boolean(scheduleId),
+  })
+}
+
+async function fetchScheduleRunSteps(runId: string): Promise<ScheduleRunStep[]> {
+  const data = await apiJson<{ steps?: ScheduleRunStep[] }>(
+    `/api/schedule-runs/${encodeURIComponent(runId)}/steps`,
+    undefined,
+    'Unable to load run activity',
+  )
+  return data.steps ?? []
+}
+
+export function useScheduleRunSteps(runId: string | undefined) {
+  return useQuery({
+    queryKey: runId
+      ? scheduleRunStepsQueryKey(runId)
+      : ['schedule-run-steps', 'none'],
+    queryFn: () => fetchScheduleRunSteps(runId!),
+    enabled: Boolean(runId),
   })
 }
 
